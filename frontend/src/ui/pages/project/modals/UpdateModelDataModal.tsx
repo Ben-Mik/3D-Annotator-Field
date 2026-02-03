@@ -17,7 +17,8 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 
 	const nameRef = useRef<HTMLInputElement>(null);
 	const annotationFileRef = useRef<HTMLInputElement>(null);
-	const [formEmpty, setFormEmpty] = useState(false);
+	const [nameIsEmpty, setNameIsEmpty] = useState(false);
+	const [fileIsEmpty, setFileIsEmpty] = useState(false);
 	const [modalOpen, setModalOpen] = useState(false);
 
 	function updateModelData(id: number, name: string) {
@@ -25,29 +26,29 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 		setLoading(true);
 	}
 
-	function submit(submitEvent: React.FormEvent) {
+	function submitName(submitEvent: React.FormEvent) {
 		submitEvent.preventDefault();
 		const name = nameRef.current?.value;
 
 		if (name) {
-			setFormEmpty(false);
+			setNameIsEmpty(false);
 			updateModelData(id, name);
 			setModalOpen(false);
 		} else {
-			setFormEmpty(true);
+			setNameIsEmpty(true);
 		}
 	}
 
-	function update(submitEvent: React.FormEvent) {
+	function submitFile(submitEvent: React.FormEvent) {
 		submitEvent.preventDefault();
 		const annotationFile = annotationFileRef.current?.files;
 
-		if (annotationFile) {
-			setFormEmpty(false);
+		if (annotationFile && annotationFile.length === 1) {
+			setFileIsEmpty(false);
 			updateAnnotationFile(id, annotationFile[0]);
-			setModalOpen(false);
+			setFileIsEmpty(false);
 		} else {
-			setFormEmpty(true);
+			setFileIsEmpty(true);
 		}
 	}
 
@@ -86,7 +87,7 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 					<div className="my-auto space-y-4">
 						<h2 className="text-xl">{LL.EDIT_MODEL()}</h2>
 					</div>
-					<form onSubmit={submit}>
+					<form onSubmit={submitName}>
 						<label htmlFor="name" className="label">
 							<span className="label-text">{LL.NAME()}</span>
 						</label>
@@ -100,7 +101,7 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 							defaultValue={name}
 						/>
 
-						{formEmpty && (
+						{nameIsEmpty && (
 							<p className="-mb-4 text-error">
 								{LL.FILL_ALL_FIELDS()}
 							</p>
@@ -113,7 +114,7 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 							{LL.EDIT_MODEL()}
 						</button>
 					</form>
-					<form onSubmit={update}>
+					<form onSubmit={submitFile}>
 						<label htmlFor="annotation-file" className="label mt-2">
 							<span className="label-text">
 								{LL.ANNOTATION_FILE()}
@@ -125,9 +126,15 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 							placeholder={LL.ANNOTATION_FILE()}
 							id="annotation-file"
 							className={`file:btn file:mr-4`}
-							accept=".anno3d, .txt"
+							accept=".anno3d, .ANNO3D, .txt, .TXT .png, .PNG"
 							ref={annotationFileRef}
 						/>
+
+						{fileIsEmpty && (
+							<p className="-mb-4 text-error">
+								{LL.SELECT_FILE()}
+							</p>
+						)}
 
 						<button
 							type="submit"

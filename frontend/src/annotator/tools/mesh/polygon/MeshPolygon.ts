@@ -17,7 +17,7 @@ import {
 } from "three-mesh-bvh";
 import { type AnnotationManager } from "~annotator/annotation/AnnotationManager";
 import { type UndoManager } from "~annotator/annotation/undo/UndoManager";
-import { getHeightAt, getWidthAt } from "~annotator/scene/Camera";
+import { getHeightAt, getWidthAt, type Camera } from "~annotator/scene/Camera";
 import { type Scene } from "~annotator/scene/Scene";
 import { type Mesh } from "~annotator/scene/model/Mesh";
 import { Tool } from "~annotator/tools/Tool";
@@ -29,19 +29,31 @@ import {
 	getConvexHull,
 	lineCrossesLine,
 	pointRayCrossesSegments,
-} from "~annotator/tools/common/math/MathUtils";
-import { type Observer, type Unsubscribe } from "~entity/Types";
+} from "~annotator/tools/common/utils/MathUtils";
+import type { SelectionBuffer } from "~annotator/tools/common/utils/SelectionBuffer";
+import { EventManager } from "~events/EventManager";
+import { type Subscribable } from "~events/Events";
+import { ColorSetting, StringSetting } from "~settings/Settings";
+import { createSettingsManager } from "~settings/SettingsManager";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import { assertUnreachable } from "~util/TypeScript";
 import { MeshPolygonButton } from "./MeshPolygonButton";
 import { MeshPolygonHelpContent } from "./MeshPolygonHelpContent";
 import { MeshPolygonQuickSettingsView } from "./MeshPolygonQuickSettingsView";
+import { MeshPolygonSettingsView } from "./MeshPolygonSettingsView";
+
+const LL = getI18NContext();
+
+const NAME = "MESH_POLYGON";
+const DISTANCE_FROM_CAMERA = 0.1;
 
 export enum PolygonToolState {
 	INACTIVE,
 	ACTIVE,
 	SELECTED,
 }
-const LL = getI18NContext();
+
+export const MIN_POINTS = 3;
 
 export const SELECTION_MODES = [
 	{
@@ -61,25 +73,34 @@ export const SELECTION_MODES = [
 	},
 ] as const;
 
-export const MIN_POINTS = 3;
+export const MESH_POLYGON_SETTINGS = {
+	selectionMode: new StringSetting<(typeof SELECTION_MODES)[number]["name"]>(
+		"selectionMode",
+		"centroid"
+	),
+	lineColor: new ColorSetting("lineColor", 0xff9800),
+};
 
-interface Parameters {
-	selectionMode: (typeof SELECTION_MODES)[number]["name"];
-}
+const settingsRegistry = new LocalStorageSettingsRegistry(NAME + "-U1CJh");
+settingsRegistry.registerMultiple(MESH_POLYGON_SETTINGS);
 
-const NAME = "MESH_POLYGON";
-
-const LINE_COLOR = "#ff9800";
-const DISTANCE_FROM_CAMERA = 0.1;
+export type MeshPolygonEvents = {
+	stateChange: PolygonToolState;
+	pointCountChange: number;
+};
 
 /**
  * A polygon tool to select mesh data
  * (inspired by https://github.com/gkjohnson/three-mesh-bvh)
  */
-export class MeshPolygon extends Tool<Mesh> {
-	public parameters: Parameters = {
-		selectionMode: "centroid",
-	};
+export class MeshPolygon
+	extends Tool<Mesh>
+	implements Subscribable<MeshPolygonEvents>
+{
+	private readonly settings;
+
+	private readonly eventManager = new EventManager<MeshPolygonEvents>();
+	public on = this.eventManager.on.bind(this.eventManager);
 
 	// initialized in onLoad()
 	private mesh!: ThreeMesh;
@@ -91,8 +112,6 @@ export class MeshPolygon extends Tool<Mesh> {
 
 	private state = PolygonToolState.INACTIVE;
 	private preview = false;
-
-	private readonly stateObservers = new Set<Observer<PolygonToolState>>();
 
 	private pointerMoveListenerConfig: ListenerConfig<"pointermove"> = {
 		name: "pointermove",
@@ -117,31 +136,25 @@ export class MeshPolygon extends Tool<Mesh> {
 	constructor(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<Mesh>
+		scene: Scene<Mesh>,
+		selectionBuffer: SelectionBuffer
 	) {
-		super(NAME, annotationManager, undoManager, scene);
-	}
+		super(NAME, annotationManager, undoManager, scene, selectionBuffer);
 
-	public addStateObserver(observer: Observer<PolygonToolState>): Unsubscribe {
-		this.stateObservers.add(observer);
-		return () => {
-			this.stateObservers.delete(observer);
-		};
+		this.settings = createSettingsManager(MESH_POLYGON_SETTINGS);
 	}
 
 	private setState(state: PolygonToolState) {
 		this.state = state;
-		this.notifyStateObservers();
-	}
-
-	private notifyStateObservers() {
-		for (const observer of this.stateObservers) {
-			observer(this.state);
-		}
+		this.eventManager.emit("stateChange", this.state);
 	}
 
 	public override getToolButtonComponent() {
 		return MeshPolygonButton;
+	}
+
+	public override getSettingsComponent() {
+		return MeshPolygonSettingsView;
 	}
 
 	public override getQuickSettingsComponent() {
@@ -160,18 +173,28 @@ export class MeshPolygon extends Tool<Mesh> {
 		this.mesh = this.scene.getModel().getMesh();
 		this.selectionShape = new Line(
 			new BufferGeometry(),
-			new LineBasicMaterial({ color: LINE_COLOR })
+			this.createSelectionShapeMaterial(this.settings.lineColor)
 		);
 		this.selectionShape.renderOrder = 1;
 		this.selectionShape.position.z = -DISTANCE_FROM_CAMERA;
+
+		this.settings.onChange("lineColor", ({ new: color }) => {
+			this.selectionShape.material =
+				this.createSelectionShapeMaterial(color);
+		});
 	}
 
-	protected override onDispose(): void {
+	private createSelectionShapeMaterial(color: number) {
+		return new LineBasicMaterial({ color });
+	}
+
+	protected override onDestroy(): void {
+		this.settings.unsubscribeAll();
+		this.eventManager.destroy();
 		for (const camera of this.scene.cameras) {
 			camera.remove(this.selectionShape);
 		}
 		this.selectionShape.geometry.dispose();
-		this.stateObservers.clear();
 	}
 
 	protected override onSelected(): void {
@@ -207,6 +230,14 @@ export class MeshPolygon extends Tool<Mesh> {
 		);
 	}
 
+	protected override onCameraChange(
+		oldCamera: Camera,
+		newCamera: Camera
+	): void {
+		oldCamera.remove(this.selectionShape);
+		newCamera.add(this.selectionShape);
+	}
+
 	public getState(): PolygonToolState {
 		return this.state;
 	}
@@ -227,7 +258,7 @@ export class MeshPolygon extends Tool<Mesh> {
 	private addPointToPolygon(x: number, y: number): void {
 		this.selectedPoints.push(x, y, 0);
 		this.selectionShapeNeedsUpdate = true;
-		this.notifyStateObservers();
+		this.eventManager.emit("stateChange", this.state);
 	}
 
 	private moveLastPolygonPoint(x: number, y: number) {
@@ -247,7 +278,7 @@ export class MeshPolygon extends Tool<Mesh> {
 
 		this.selectedPoints.length -= 3;
 		this.selectionShapeNeedsUpdate = true;
-		this.notifyStateObservers();
+		this.eventManager.emit("stateChange", this.state);
 	}
 
 	public removeLastPoint(): void {
@@ -278,7 +309,7 @@ export class MeshPolygon extends Tool<Mesh> {
 			this.moveLastPolygonPoint(position.x, position.y);
 		}
 
-		this.notifyStateObservers();
+		this.eventManager.emit("stateChange", this.state);
 	}
 
 	public concludePolygon(): void {
@@ -425,7 +456,7 @@ export class MeshPolygon extends Tool<Mesh> {
 	/**
 	 * Updates the selection for all intersecting pints
 	 */
-	private calculateIntersection(): number[] {
+	private calculateIntersection(): ArrayLike<number> {
 		// TODO: Possible improvements
 		// - Correctly handle the camera near clip
 		// - Improve line line intersect performance?
@@ -464,8 +495,8 @@ export class MeshPolygon extends Tool<Mesh> {
 					min: Vector3;
 					max: Vector3;
 				},
-				isLeaf: boolean,
-				score,
+				_isLeaf: boolean,
+				_score,
 				depth: number
 			) => {
 				// Get the bounding box points
@@ -596,7 +627,8 @@ export class MeshPolygon extends Tool<Mesh> {
 				const segmentsToCheck = this.perBoundsSegments[depth];
 				const vertices = [triangle.a, triangle.b, triangle.c];
 
-				switch (this.parameters.selectionMode) {
+				const selectionMode = this.settings.selectionMode;
+				switch (selectionMode) {
 					case "centroid": {
 						// get the center of the triangle
 						const centroid = triangle.a
@@ -677,7 +709,7 @@ export class MeshPolygon extends Tool<Mesh> {
 						break;
 					}
 					default:
-						assertUnreachable(this.parameters.selectionMode);
+						assertUnreachable(selectionMode);
 				}
 
 				return false;

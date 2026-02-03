@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { type ToolQuickSettingsProps } from "~annotator/tools/Tool";
 import { Button } from "~annotator/tools/common/components/Button";
 import { RadioButtonGroup } from "~annotator/tools/common/components/RadioButtonGroup";
+import { useSetting } from "~ui/annotator/hooks/Settings";
 import {
+	MESH_POLYGON_SETTINGS,
 	MIN_POINTS,
 	PolygonToolState,
 	SELECTION_MODES,
@@ -15,16 +17,25 @@ import {
  */
 export function MeshPolygonQuickSettingsView(props: ToolQuickSettingsProps) {
 	const tool = props.tool as MeshPolygon;
-	const params = tool.parameters;
 	const [state, setState] = useState(tool.getState());
 	const [count, setCount] = useState(tool.getNumberOfPoints());
+	const [selectionMode, setSelectionMode] = useSetting(
+		MESH_POLYGON_SETTINGS.selectionMode
+	);
 
 	useEffect(() => {
-		const unsubscribe = tool.addStateObserver((state) => {
+		const unsubscribeState = tool.on("stateChange", (state) => {
 			setState(state);
-			setCount(tool.getNumberOfPoints());
 		});
-		return unsubscribe;
+
+		const unsubscribeCount = tool.on("pointCountChange", (count) => {
+			setCount(count);
+		});
+
+		return () => {
+			unsubscribeState();
+			unsubscribeCount();
+		};
 	}, [tool]);
 
 	const { LL } = useI18nContext();
@@ -72,10 +83,10 @@ export function MeshPolygonQuickSettingsView(props: ToolQuickSettingsProps) {
 			<RadioButtonGroup
 				label={LL.SELECTION_MODE() + ":"}
 				onChange={(mode) => {
-					params.selectionMode = mode;
+					setSelectionMode(mode);
 				}}
 				choices={SELECTION_MODES}
-				defaultValue={params.selectionMode}
+				value={selectionMode}
 			/>
 		</div>
 	);

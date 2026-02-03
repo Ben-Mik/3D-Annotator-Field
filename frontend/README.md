@@ -2,9 +2,17 @@
 
 ## Development
 
-### Setup
+### Setup / Prerequisites
 
-This project uses **[pnpm](https://pnpm.io/installation#using-corepack)** as its package manager. Please use pnpm to install, add or remove packages and to execute scripts.
+-   **Node ≥ 22**
+
+This project uses **[pnpm](https://pnpm.io/installation#using-corepack)** as its package manager. Please run the following command to install the correct version of **pnpm**:
+
+```bash
+corepack enable
+# (optional) eagerly download the right CLI:
+corepack install
+```
 
 This project uses **ESLint** and **Prettier** to ensure a consistent code style.
 To keep this repo clean, Prettier will be run before every commit using git hooks.
@@ -58,46 +66,34 @@ If a required variable is missing, an error is displayed and the action will be 
 
 You may set the following variables in the `.env.local` file:
 
--   `ANNOTATOR_3D_API_BASE_URL=http://127.0.0.1:8000/`  
+-   `ANNOTATOR_3D_API_BASE_URL=http://127.0.0.1:8000/api`
     (`string` - **REQUIRED**)
 
     The URL of the backend. The example value is the default URL of the backend dev server.
 
--   `ANNOTATOR_3D_DEBUG=true`  
+-   `ANNOTATOR_3D_TITLE=[local] 3D-ANNOTATOR`\
+    (`string` - default: `3D-ANNOTATOR`)
+
+    The page title. Useful to distinguish between different deployments and/or local dev server.
+
+-   `ANNOTATOR_3D_DEBUG=true`\
     (`boolean` - default: `false`)
 
     If `true`, debug information will be printed to the console.
 
--   `ANNOTATOR_3D_LOGGING_LEVEL=1`  
+-   `ANNOTATOR_3D_LOGGING_LEVEL=1`\
     (`number` - `min: 0, max: 3` - default: `0`)
 
     Currently not used.
 
--   `ANNOTATOR_3D_SHOW_STATS=false`  
-    (`boolean` - default: `true`)
-
-    Displays fps, render time and memory usage while annotating.
-
--   `ANNOTATOR_3D_RESET_OPFS=true`  
-    (`boolean` - default: `false`)
-
-    If `true`, all files in the origin private file system (OPFS) will be deleted on every page load.
-    This variable is will be removed once the contents of the OPFS can be managed through the UI.
-
--   `ANNOTATOR_3D_BACKEND_VERSION=0.1.0`  
-    `ANNOTATOR_3D_BACKEND_VERSION_SHA`  
-    `ANNOTATOR_3D_FRONTEND_VERSION=HEAD`  
-    `ANNOTATOR_3D_FRONTEND_VERSION_SHA=22797c060b4baa157e2b428d1ae5d97b9bcda48c`  
-    `ANNOTATOR_3D_SERVER_VERSION`  
-    `ANNOTATOR_3D_SERVER_VERSION_SHA`  
+-   `ANNOTATOR_3D_BACKEND_VERSION=0.1.0`\
+    `ANNOTATOR_3D_BACKEND_VERSION_SHA`\
+    `ANNOTATOR_3D_FRONTEND_VERSION=HEAD`\
+    `ANNOTATOR_3D_FRONTEND_VERSION_SHA=22797c060b4baa157e2b428d1ae5d97b9bcda48c`\
+    `ANNOTATOR_3D_SERVER_VERSION`\
+    `ANNOTATOR_3D_SERVER_VERSION_SHA`\
     (`string` - default: `""`)
 
     Set the versions of the currently used backend, frontend and server.
     This information will be logged in the console and/or shown to the user.
     They each should contain a human readable string, e.g a tag or branch name and the commit sha.
-
-### Guidelines
-
--   Use classic getters/setters over JavaScript getters/setters when possible
-
-    JavaScript getters/setters are not immediately distinguishable from class properties. When deciding if a retrieved value should be stored in a local variable or instead be accessed repeatedly, this information is critical. Furthermore JavaScript getters/setters can not be extended with optional parameters later on (e.g `getValue(options?: type)` or `setValue(value, options?: type)`);

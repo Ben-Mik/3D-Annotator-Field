@@ -1,7 +1,7 @@
 import { useI18nContext } from "i18n/i18n-react";
+import { Circle } from "lucide-react";
 import type { ToolButtonProps } from "~annotator/tools/Tool";
 import { ToolButton } from "~ui/components/ToolButton";
-import Brush from "./brush.png";
 
 /**
  * The button component to select the LightThrower
@@ -13,7 +13,7 @@ export function PointCloudBrushButton({ onClick, selected }: ToolButtonProps) {
 	const { LL } = useI18nContext();
 	return (
 		<ToolButton
-			imagePath={Brush}
+			icon={<Circle size={48} strokeWidth={1} />}
 			toolAlt={LL.BRUSH()}
 			toolFunc={onClick}
 			selected={selected}

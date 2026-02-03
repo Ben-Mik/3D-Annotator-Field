@@ -17,12 +17,15 @@ import {
 import { type FileResource } from "~api/v1/resources/Resources";
 import { transformFileResource } from "~api/v1/resources/Transformations";
 import { type FileInformation } from "~entity/ModelInformation";
-import { type Observer } from "~entity/Types";
 import {
-	readableStreamAsBlob,
-	type NamedStream,
-} from "~util/streams/StreamUtils";
-import { unzipStream, zipStream } from "~util/streams/ZIPUtils";
+	type FileData,
+	type NameableSizableStream,
+	type SizeableStream,
+} from "~entity/Types";
+import type { Observer } from "~events/Events";
+import { readableStreamToBlob } from "~util/streams/StreamUtils";
+import { unzipBlob } from "~util/zip/Unzip";
+import { ZipReadableStream } from "~util/zip/ZipReadableStream";
 
 const ZIP_MIME_TYPE = "application/x-zip-compressed";
 
@@ -34,9 +37,7 @@ const ANNOTATION_ENDPOINT = "annotationFile";
 const MODEL_FILE_NAME = "baseFile.zip";
 const ANNOTATION_FILE_NAME = "annotationFile.zip";
 
-const EMPTY_FILE = "empty";
 const ANNOTATION_FILE = "annotation.anno3d";
-const MAX_MODEL_FILES = 2;
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -65,7 +66,7 @@ export class FilesV1 implements Files {
 	 * @param onProgress an optional progress observer
 	 * @returns a Promise resolving to the data as a blob
 	 */
-	private downloadBlob(
+	private async downloadBlob(
 		endpoint: string,
 		onProgress?: Observer<number>,
 		abort?: AbortController
@@ -79,38 +80,6 @@ export class FilesV1 implements Files {
 				timeout: TIMEOUT_DOWNLOAD,
 			})
 			.then(({ data }) => data);
-	}
-
-	private async unzipBlob(
-		blob: Blob,
-		expectedFileCount = 1
-	): Promise<NamedStream[]> {
-		return new Promise<NamedStream[]>((resolve) => {
-			const stream = blob.stream();
-
-			const resStreams: NamedStream[] = [];
-			let count = 0;
-
-			function onNewFile(namedStream: NamedStream) {
-				const newStream = namedStream.stream;
-				const streamName = namedStream.name;
-
-				if (streamName !== EMPTY_FILE) {
-					resStreams.push({
-						name: streamName,
-						stream: newStream,
-					});
-				}
-
-				count++;
-
-				if (count === expectedFileCount) {
-					resolve(resStreams);
-				}
-			}
-
-			unzipStream(stream, onNewFile);
-		});
 	}
 
 	/**
@@ -132,7 +101,7 @@ export class FilesV1 implements Files {
 	): Promise<FileInformation> {
 		const progressObserver = this.getProgressObserver(onProgress);
 
-		const blob = await readableStreamAsBlob(fileStream);
+		const blob = await readableStreamToBlob(fileStream);
 		const formData = new FormData();
 		formData.append("fileFormat", ZIP_MIME_TYPE);
 		formData.append("file", blob, fileName);
@@ -157,7 +126,7 @@ export class FilesV1 implements Files {
 		modelId: number,
 		onProgress?: Observer<number>,
 		abort?: AbortController
-	): APIResultAbort<NamedStream[]> {
+	): APIResultAbort<FileData[]> {
 		const request = this.downloadModelHelper(modelId, onProgress, abort);
 
 		return ResultAsync.fromPromise(request, (error) =>
@@ -169,44 +138,39 @@ export class FilesV1 implements Files {
 		modelId: number,
 		onProgress?: Observer<number>,
 		abort?: AbortController
-	): Promise<NamedStream[]> {
+	): Promise<FileData[]> {
 		const endpoint = this.getEndpoint(modelId, MODEL_ENDPOINT);
 		const blob = await this.downloadBlob(endpoint, onProgress, abort);
-		const files = await this.unzipBlob(blob, MAX_MODEL_FILES);
+		const files = await unzipBlob(blob);
 		return files;
 	}
 
 	public uploadModel(
 		modelId: number,
-		fileStreams: NamedStream[],
-		onProgress?: Observer<number>
+		fileStreams: NameableSizableStream[],
+		progress?: {
+			onCompressionProgress?: Observer<number>;
+			onUploadProgress?: Observer<number>;
+		}
 	): APIResult<
 		FileInformation,
 		SingularError<
 			Errors.NETWORK | Errors.LARGE_FILE | Errors.EXISTING_BASE_FILE
 		>
 	> {
-		if (fileStreams.length > MAX_MODEL_FILES) {
-			throw new Error(
-				`Not more than ${MAX_MODEL_FILES} files supported.`
-			);
-		}
-
-		if (fileStreams.length === 1) {
-			fileStreams = [...fileStreams];
-			fileStreams.push({
-				name: EMPTY_FILE,
-				stream: new Blob([EMPTY_FILE]).stream(),
-			});
-		}
-
 		const endpoint = this.getEndpoint(modelId, MODEL_ENDPOINT);
-		const zipFileStream = zipStream(fileStreams);
+
+		const zipFileStream = new ZipReadableStream(
+			fileStreams,
+			progress?.onCompressionProgress,
+			undefined
+		);
+
 		const request = this.uploadStream(
 			endpoint,
 			zipFileStream,
 			MODEL_FILE_NAME,
-			onProgress
+			progress?.onUploadProgress
 		);
 
 		const errorHandler = getNetworkErrorHandler<
@@ -226,7 +190,7 @@ export class FilesV1 implements Files {
 		onProgress?: Observer<number>,
 		abort?: AbortController
 	): APIResult<
-		ReadableStream<Uint8Array>,
+		FileData,
 		SingularError<
 			Errors.NETWORK | Errors.ABORTED | Errors.NO_ANNOTATION_FILE
 		>
@@ -252,30 +216,36 @@ export class FilesV1 implements Files {
 		modelId: number,
 		onProgress?: Observer<number>,
 		abort?: AbortController
-	): Promise<ReadableStream<Uint8Array>> {
+	): Promise<FileData> {
 		const endpoint = this.getEndpoint(modelId, ANNOTATION_ENDPOINT);
 		const blob = await this.downloadBlob(endpoint, onProgress, abort);
-		const [annotationFile] = await this.unzipBlob(blob);
-		return annotationFile.stream;
+		const [annotationFile] = await unzipBlob(blob);
+		return annotationFile;
 	}
 
 	public uploadAnnotationFile(
 		modelId: number,
-		fileStream: ReadableStream<Uint8Array>,
-		onProgress?: Observer<number>
+		file: SizeableStream,
+		progress?: {
+			onCompressionProgress?: Observer<number>;
+			onUploadProgress?: Observer<number>;
+		}
 	): APIResult<
 		FileInformation,
 		SingularError<Errors.NETWORK | Errors.LOCKED | Errors.LARGE_FILE>
 	> {
 		const endpoint = this.getEndpoint(modelId, ANNOTATION_ENDPOINT);
-		const zipFileStream = zipStream([
-			{ name: ANNOTATION_FILE, stream: fileStream },
-		]);
+
+		const zipFileStream = new ZipReadableStream(
+			[{ name: ANNOTATION_FILE, data: file.data, size: file.size }],
+			progress?.onCompressionProgress
+		);
+
 		const request = this.uploadStream(
 			endpoint,
 			zipFileStream,
 			ANNOTATION_FILE_NAME,
-			onProgress
+			progress?.onUploadProgress
 		);
 
 		const errorHandler = getNetworkErrorHandler<

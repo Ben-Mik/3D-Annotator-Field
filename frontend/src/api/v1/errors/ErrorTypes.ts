@@ -1,5 +1,5 @@
 import { type AxiosError, type AxiosResponse } from "axios";
-import { type OptionalNestedObject } from "~entity/Types";
+import type { OptionalNestedObject } from "~util/TypeScript";
 
 /**
  *	*** API ***

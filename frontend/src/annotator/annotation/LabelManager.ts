@@ -1,16 +1,32 @@
-import { NEUTRAL_LABEL, type Label } from "~entity/Annotation";
-import { type Observer, type Unsubscribe } from "~entity/Types";
+import {
+	MutableLabel,
+	NEUTRAL_LABEL,
+	type Label,
+	type LabelLUT,
+	type LabelMap,
+	type MutableLabelLUT,
+} from "~entity/Annotation";
+import { EventManager } from "~events/EventManager";
+import { type Subscribable } from "~events/Events";
+
+export type LabelManagerEvents = {
+	activeLabelChange: Label;
+	lockChange: Label;
+	visibilityChange: Label;
+};
 
 /**
  * Menages labels and shares the information about them
  */
-export class LabelManager {
-	private readonly activeLabelObservers = new Set<Observer<Label>>();
-	private readonly labelsObservers = new Set<Observer<Label[]>>();
+export class LabelManager implements Subscribable<LabelManagerEvents> {
+	private readonly _eventManager = new EventManager<LabelManagerEvents>();
+	public on = this._eventManager.on.bind(this._eventManager);
 
-	private labels: Set<Label>;
-	private labelMap: Map<number, Label>;
-	private activeLabel: Label;
+	private readonly _labels: readonly Label[];
+	private readonly _labelLUT: MutableLabelLUT;
+	private readonly _labelMap: LabelMap;
+
+	private _activeLabel: Label;
 
 	/**
 	 * Constructs a new instance of a LabelManager
@@ -21,65 +37,43 @@ export class LabelManager {
 		if (labels.length === 0) {
 			throw new Error("'labels' is empty");
 		}
-		this.labels = new Set(labels);
-		this.labelMap = this.generateLabelMap(labels);
-		this.activeLabel = labels[0];
+
+		this._labels = this._cloneLabels(labels);
+		this._labelLUT = this._generateLabelLUT();
+		this._labelMap = this._generateLabelMap();
+		this._activeLabel = labels[0];
 	}
 
-	private generateLabelMap(labels: Label[]): Map<number, Label> {
+	private _cloneLabels(labels: Label[]): Label[] {
+		return labels.map(
+			(label) =>
+				new MutableLabel(
+					label.id,
+					label.annotationClass,
+					label.name,
+					label.color
+				)
+		);
+	}
+
+	private _generateLabelLUT(): MutableLabelLUT {
+		const labelLUT = new Array<MutableLabel>(
+			NEUTRAL_LABEL.annotationClass + 1
+		);
+		labelLUT[NEUTRAL_LABEL.annotationClass] = NEUTRAL_LABEL;
+		for (const label of this._labels) {
+			labelLUT[label.annotationClass] = label;
+		}
+		return labelLUT;
+	}
+
+	private _generateLabelMap(): LabelMap {
 		const labelMap = new Map<number, Label>();
-		for (const label of labels) {
+		for (const label of this._labels) {
 			labelMap.set(label.annotationClass, label);
 		}
 		labelMap.set(NEUTRAL_LABEL.annotationClass, NEUTRAL_LABEL);
 		return labelMap;
-	}
-
-	/**
-	 * Adds a observer listening to the active label
-	 *
-	 * @param observer the observer
-	 * @returns the unsubscribe callback
-	 */
-	public addActiveLabelObserver(observer: Observer<Label>): Unsubscribe {
-		this.activeLabelObservers.add(observer);
-		observer(this.activeLabel);
-		return () => {
-			this.activeLabelObservers.delete(observer);
-		};
-	}
-
-	/**
-	 * Notifies all subscribed observers when the active label changes
-	 */
-	private notifyActiveLabelObservers() {
-		for (const observer of this.activeLabelObservers) {
-			observer(this.activeLabel);
-		}
-	}
-
-	/**
-	 * Adds a label observer
-	 *
-	 * @param observer the observer
-	 * @returns the unsubscribe callback
-	 */
-	public addLabelsObserver(observer: Observer<Label[]>): Unsubscribe {
-		this.labelsObservers.add(observer);
-		observer(this.getLabels());
-		return () => {
-			this.labelsObservers.delete(observer);
-		};
-	}
-
-	/**
-	 * Notifies all subscribed label observers
-	 */
-	private notifyLabelsObservers() {
-		const array = this.getLabels();
-		for (const observer of this.labelsObservers) {
-			observer(array);
-		}
 	}
 
 	/**
@@ -88,7 +82,7 @@ export class LabelManager {
 	 * @returns the active label
 	 */
 	public getActiveLabel(): Label {
-		return this.activeLabel;
+		return this._activeLabel;
 	}
 
 	/**
@@ -97,20 +91,37 @@ export class LabelManager {
 	 * @param label the label
 	 */
 	public selectLabel(label: Label): void {
-		if (!this.labels.has(label)) {
+		this._activeLabel = this._findLabel(label);
+		this._eventManager.emit("activeLabelChange", this._activeLabel);
+	}
+
+	private _findLabel(label: Label): MutableLabel {
+		const basicLabel = this._labelLUT[label.annotationClass];
+		if (basicLabel === undefined) {
 			throw new Error("'label' not found in LabelManager");
 		}
 
-		this.activeLabel = label;
-		this.notifyActiveLabelObservers();
+		return basicLabel;
 	}
 
 	/**
 	 * Selects the eraser (the {@link NEUTRAL_LABEL} will be selected)
 	 */
 	public selectEraser(): void {
-		this.activeLabel = NEUTRAL_LABEL;
-		this.notifyActiveLabelObservers();
+		this._activeLabel = NEUTRAL_LABEL;
+		this._eventManager.emit("activeLabelChange", this._activeLabel);
+	}
+
+	public toggleLock(label: Label): void {
+		const basicLabel = this._findLabel(label);
+		basicLabel.locked = !basicLabel.locked;
+		this._eventManager.emit("lockChange", basicLabel);
+	}
+
+	public toggleVisibility(label: Label): void {
+		const basicLabel = this._findLabel(label);
+		basicLabel.annotationVisible = !basicLabel.annotationVisible;
+		this._eventManager.emit("visibilityChange", basicLabel);
 	}
 
 	/**
@@ -119,7 +130,7 @@ export class LabelManager {
 	 * @returns true when the eraser is currently selected
 	 */
 	public isEraserSelected(): boolean {
-		return this.activeLabel.isNeutral();
+		return this._activeLabel.isNeutral;
 	}
 
 	/**
@@ -128,69 +139,26 @@ export class LabelManager {
 	 * @returns a copy of the label array
 	 */
 	public getLabels(): Label[] {
-		return [...this.labels];
+		return [...this._labels];
 	}
 
 	/**
 	 * Returns the label map including the neutral label.
 	 *
+	 * TODO: Deprecate
+	 *
 	 * @returns the label map including the neutral label
 	 */
-	public getLabelMap(): Map<number, Label> {
-		return this.labelMap;
+	public getLabelMap(): LabelMap {
+		return this._labelMap;
 	}
 
 	/**
-	 * Updates the label array
+	 * Returns the label look up table including the neutral label.
 	 *
-	 * @param labels the new label array
-	 * @param selectedLabel the optional selected label
+	 * @returns the label LUT including the neutral label
 	 */
-	public updateLabels(labels: Label[], selectedLabel?: Label): void {
-		if (labels.length === 0) {
-			throw new Error("'labels' is empty");
-		}
-
-		const newLabels = new Set(labels);
-
-		if (selectedLabel && !newLabels.has(selectedLabel)) {
-			throw new Error("'labels' does not contain 'selectedLabel'");
-		}
-
-		let activeLabelChanged = false;
-		if (selectedLabel && selectedLabel !== this.activeLabel) {
-			this.activeLabel = selectedLabel;
-			activeLabelChanged = true;
-		} else if (
-			!this.containsLabelByAnnotationClass(this.activeLabel, newLabels)
-		) {
-			this.activeLabel = labels[0];
-			activeLabelChanged = true;
-		}
-
-		this.labels = newLabels;
-		this.labelMap = this.generateLabelMap(labels);
-
-		this.notifyLabelsObservers();
-
-		if (activeLabelChanged) {
-			this.notifyActiveLabelObservers();
-		}
-	}
-
-	/**
-	 * Returns true if labels contains a label with the same annotation class as label
-	 *
-	 * @param label the label
-	 * @param labels the labels
-	 * @returns true if the label is contained
-	 */
-	private containsLabelByAnnotationClass(label: Label, labels: Set<Label>) {
-		for (const currentLabel of labels) {
-			if (currentLabel.annotationClass === label.annotationClass) {
-				return true;
-			}
-		}
-		return false;
+	public getLabelLUT(): LabelLUT {
+		return this._labelLUT;
 	}
 }

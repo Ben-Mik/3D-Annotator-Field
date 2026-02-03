@@ -23,6 +23,8 @@ class IsPartOfProject(BasePermission):
         elif isinstance(temp_obj, models.Label):
             temp_obj = temp_obj.project
         if isinstance(temp_obj, models.Project):
+            if isinstance(request.user, AnonymousUser):
+                return False
             return (
                 request.user in temp_obj.users.all() or request.user == temp_obj.owner
             )

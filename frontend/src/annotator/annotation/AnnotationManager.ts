@@ -1,44 +1,58 @@
 import {
-	NEUTRAL_LABEL,
+	getEmptyAnnotationsLUT,
 	type AnnotationData,
+	type AnnotationDataArray,
+	type AnnotationsLUT,
+	type AnnotationsMap,
 	type Label,
 	type LabeledAnnotationData,
 } from "~entity/Annotation";
-import {
-	type Disposable,
-	type Observer,
-	type Unsubscribe,
-} from "~entity/Types";
+import { type Destroyable } from "~entity/Types";
+import { EventManager } from "~events/EventManager";
+import type { Subscribable } from "~events/Events";
 import { type LabelManager } from "./LabelManager";
+
+export interface AnnotationManagerEventData {
+	annotations: AnnotationsLUT;
+	data: LabeledAnnotationData;
+}
+
+export type AnnotationManagerEvents = {
+	/**
+	 * All annotations, before the annotation happened.
+	 * The changes in `data` will be applied to `annotations`
+	 * right after the event. They are **not** yet included.
+	 */
+	beforeAnnotation: AnnotationManagerEventData;
+	/**
+	 * All annotations, after the annotation happened, i.e including
+	 * the changes represented by `data`.
+	 */
+	afterAnnotation: AnnotationManagerEventData;
+};
 
 /**
  * The AnnotationManager handles the annotation of data.
  * It informs all observers when a annotation happens.
  */
-export class AnnotationManager implements Disposable {
-	private readonly observers = new Set<Observer<LabeledAnnotationData>>();
+export class AnnotationManager
+	implements Subscribable<AnnotationManagerEvents>, Destroyable
+{
+	private readonly eventManager = new EventManager<AnnotationManagerEvents>();
+	public on = this.eventManager.on.bind(this.eventManager);
 
-	private readonly annotations: Uint16Array;
-
-	private labelManager: LabelManager;
+	private readonly labelManager: LabelManager;
+	private annotations: AnnotationsLUT;
 
 	/**
 	 * Constructs a new AnnotationManager
 	 *
-	 * @param indexCount the index count of a model
+	 * @param count the number of entities in the model that can be annotated
 	 * @param labelManager the labelManager
 	 */
-	constructor(indexCount: number, labelManager: LabelManager) {
-		this.annotations = new Uint16Array(indexCount);
-		this.initAnnotationsArray();
+	constructor(count: number, labelManager: LabelManager) {
 		this.labelManager = labelManager;
-	}
-
-	/**
-	 * Sets all annotations to the {@link NEUTRAL_LABEL}
-	 */
-	private initAnnotationsArray(): void {
-		this.annotations.fill(NEUTRAL_LABEL.annotationClass);
+		this.annotations = getEmptyAnnotationsLUT(count, true);
 	}
 
 	/**
@@ -52,30 +66,31 @@ export class AnnotationManager implements Disposable {
 	}
 
 	/**
-	 * Loads annotation data from existing annotated data stored als {@link LabeledAnnotationData}
+	 * Loads annotation data from existing annotated data.
+	 * Does NOT emit an event.
 	 *
 	 * @param annotations the labeled annotation data
 	 */
-	public loadAnnotations(annotations: LabeledAnnotationData[]) {
-		this.initAnnotationsArray();
-		for (const { label, data } of annotations) {
-			this.annotateWithLabel(label, data);
+	public loadAnnotations(annotations: AnnotationsLUT) {
+		if (annotations.length != this.annotations.length) {
+			throw new Error("AnnotationsLUTs do not have the same length!");
 		}
+		this.annotations.set(annotations);
 	}
 
 	/**
-	 * Returns the annotations in buffered form
+	 * Returns a lookup table of the current annotationData
 	 *
-	 * @returns the annotations as Uint16Array
+	 * @returns the annotations as a AnnotationsLUT
 	 */
-	public getAnnotations(): Uint16Array {
+	public getAnnotationDataLUT(): AnnotationsLUT {
 		return this.annotations;
 	}
 
-	public getLabeledAnnotationsMap(): Map<Label, AnnotationData> {
-		const labelMap: Map<number, Label> = this.labelManager.getLabelMap();
+	public getLabeledAnnotationsMap(): AnnotationsMap {
+		const labelMap = this.labelManager.getLabelMap();
 
-		const annotationsMap = new Map<Label, number[]>();
+		const annotationsMap = new Map<Label, AnnotationDataArray>();
 		for (let i = 0; i < this.annotations.length; i++) {
 			const annotationClass = this.annotations[i];
 			const label = labelMap.get(annotationClass);
@@ -102,21 +117,26 @@ export class AnnotationManager implements Disposable {
 		return labeledAnnotations;
 	}
 
-	public annotateWithLabel(label: Label, data: number[]) {
-		const labelMap = this.labelManager.getLabelMap();
-		const editableData = [];
-		for (const index of data) {
-			const previousLabel = labelMap.get(this.annotations[index]);
+	public annotateWithLabel(label: Label, data: AnnotationData) {
+		const labelLUT = this.labelManager.getLabelLUT();
+		// TODO: Do in place
+		const editableData = new Array<number>(data.length);
+		let counter = 0;
+		for (let i = 0; i < data.length; i++) {
+			const index = data[i];
+			const previousLabel = labelLUT[this.annotations[index]];
 			if (previousLabel !== undefined && !previousLabel.locked) {
-				editableData.push(index);
+				editableData[counter++] = index;
 			}
 		}
-		// notifyObservers has to be called before old classes are overwritten
-		// because HybridUndoManager needs the old annotations
-		this.notifyObservers({ label: label, data: editableData });
-		for (const index of editableData) {
+		editableData.length = counter;
+		const eventData = this.getEventData(label, editableData);
+		this.eventManager.emit("beforeAnnotation", eventData);
+		for (let i = 0; i < editableData.length; i++) {
+			const index = editableData[i];
 			this.annotations[index] = label.annotationClass;
 		}
+		this.eventManager.emit("afterAnnotation", eventData);
 	}
 
 	/**
@@ -125,46 +145,28 @@ export class AnnotationManager implements Disposable {
 	 * @param label the label
 	 * @param data the indexes to annotate
 	 */
-	public unsafeAnnotateWithLabel(label: Label, data: number[]) {
-		// notifyObservers has to be called before old classes are overwritten
-		// because HybridUndoManager needs the old annotations
-		this.notifyObservers({ label, data });
-		for (const index of data) {
+	public unsafeAnnotateWithLabel(label: Label, data: AnnotationData) {
+		const eventData = this.getEventData(label, data);
+		this.eventManager.emit("beforeAnnotation", eventData);
+		for (let i = 0; i < data.length; i++) {
+			const index = data[i];
 			this.annotations[index] = label.annotationClass;
 		}
+		this.eventManager.emit("afterAnnotation", eventData);
 	}
 
-	/**
-	 * Adds a annotation observer
-	 *
-	 * @param observer the observer
-	 * @returns the unsubscribe callback
-	 */
-	public addAnnotationObserver(
-		observer: Observer<LabeledAnnotationData>
-	): Unsubscribe {
-		this.observers.add(observer);
-		return () => {
-			this.observers.delete(observer);
+	private getEventData(label: Label, data: AnnotationData) {
+		return {
+			data: { label, data },
+			annotations: this.annotations,
 		};
-	}
-
-	/**
-	 * Notifies all subscribed observers when a annotation happened
-	 *
-	 * @param data the LabeledAnnotationData
-	 */
-	private notifyObservers(data: LabeledAnnotationData) {
-		for (const observer of this.observers) {
-			observer(data);
-		}
 	}
 
 	/**
 	 * Resets all annotation data and clears all observers
 	 */
-	public dispose(): void {
-		this.initAnnotationsArray();
-		this.observers.clear();
+	public destroy(): void {
+		this.annotations = new Uint8Array();
+		this.eventManager.destroy();
 	}
 }

@@ -4,7 +4,7 @@ import {
 	type AxiosResponse,
 } from "axios";
 import { ResultAsync } from "neverthrow";
-import { type APIResult, type Auth } from "~api/API";
+import { type APIResult, type Auth, type AuthEvents } from "~api/API";
 import { ErrorMap, Errors, SingularError } from "~api/Errors";
 import {
 	defaultApiResponseErrorHandler,
@@ -13,7 +13,6 @@ import {
 	getDefaultErrorHandler,
 	getNetworkErrorHandler,
 } from "~api/v1/errors/ErrorHandler";
-import { authStateLogger } from "~api/v1/logger/Logger";
 import {
 	type FullUserResource,
 	type LoginResource,
@@ -23,8 +22,8 @@ import {
 	validateNonNumericString,
 	validateString,
 } from "~api/v1/validation/Validation";
-import { type Observer, type Unsubscribe } from "~entity/Types";
 import { type FullUser } from "~entity/User";
+import { EventManager } from "~events/EventManager";
 
 // validity period of token in hours
 const TOKEN_TTL = 24;
@@ -45,14 +44,15 @@ type RegisterErrors =
 	| Errors.INVALID_EMAIL;
 
 export class AuthV1 implements Auth {
+	private eventManager = new EventManager<AuthEvents>();
+	public on = this.eventManager.on.bind(this.eventManager);
+
 	private axios: AxiosInstance;
 
 	// User data
 	private expiry: Date | null = null;
 	private token: string | null = null;
 	private currentUser: FullUser | null = null;
-
-	private authStateObservers = new Set<Observer<FullUser | null>>();
 
 	/*
 	 *   +++ AXIOS INTERCEPTORS +++
@@ -72,7 +72,7 @@ export class AuthV1 implements Auth {
 			if (apiError.status === 401 && apiError.code === "not_logged_in") {
 				this.resetState();
 				this.setLocalStorage();
-				this.notifyAuthStateObservers(null);
+				this.eventManager.emit("authStateChange", null);
 			}
 
 			return Promise.reject(error);
@@ -208,7 +208,7 @@ export class AuthV1 implements Auth {
 			.then((res) => {
 				this.setState(res);
 				this.setLocalStorage();
-				this.notifyAuthStateObservers(this.currentUser);
+				this.eventManager.emit("authStateChange", this.currentUser);
 				return res.user;
 			});
 
@@ -242,7 +242,7 @@ export class AuthV1 implements Auth {
 			.then(() => {
 				this.resetState();
 				this.setLocalStorage();
-				this.notifyAuthStateObservers(null);
+				this.eventManager.emit("authStateChange", null);
 				return;
 			});
 
@@ -333,32 +333,7 @@ export class AuthV1 implements Auth {
 		);
 	}
 
-	/*
-	 *   +++ AUTH STATE +++
-	 */
-
-	/**
-	 * Register a observer to be notified when the auth state changes.
-	 * When calling this method, the observer is immediately called from
-	 * within this method with the initial auth state.
-	 *
-	 * @param observer the observer
-	 * @returns a method that unsubscribes the observer
-	 */
-	public onAuthStateChanged(
-		observer: Observer<FullUser | null>
-	): Unsubscribe {
-		this.authStateObservers.add(observer);
-		observer(this.currentUser);
-		return () => {
-			this.authStateObservers.delete(observer);
-		};
-	}
-
-	private notifyAuthStateObservers(user: FullUser | null) {
-		authStateLogger(user, this.token, this.expiry);
-		for (const observer of this.authStateObservers) {
-			observer(user);
-		}
+	public getCurrentUser(): FullUser | null {
+		return this.currentUser;
 	}
 }

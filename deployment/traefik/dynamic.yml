@@ -1,0 +1,16 @@
+tls:
+  certificates:
+    - certFile: /path/to/cert
+      keyFile: /path/to/key
+
+http:
+  middlewares:
+    strip-www-authenticate:
+      headers:
+        customResponseHeaders:
+          WWW-Authenticate: ""
+    cross-origin-isolation:
+      headers:
+        customResponseHeaders:
+          Cross-Origin-Opener-Policy: "same-origin"
+          Cross-Origin-Embedder-Policy: "require-corp"

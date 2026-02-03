@@ -1,22 +1,16 @@
-import { useState } from "react";
 import { NumberInput, type NumberInputProps } from "./NumberInput";
 
 type Props = Omit<NumberInputProps, "step">;
 
-export function PercentInput({ onChange, defaultValue, ...props }: Props) {
-	const [number, setNumber] = useState(defaultValue);
-
-	function onChangeIntercept(n: number) {
-		setNumber(n);
-		onChange(n);
-	}
-
+export function PercentInput({ value, onChange, ...props }: Props) {
 	return (
 		<NumberInput
 			{...props}
-			defaultValue={defaultValue}
-			onChange={onChangeIntercept}
-			step={numberToStep(number)}
+			value={value}
+			onChange={(number) => {
+				onChange(number);
+			}}
+			step={numberToStep(value)}
 		/>
 	);
 }

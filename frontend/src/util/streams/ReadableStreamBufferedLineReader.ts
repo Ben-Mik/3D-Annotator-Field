@@ -185,6 +185,17 @@ export class ReadableStreamBufferedLineReader implements BufferedLineReader {
 	}
 
 	/**
+	 * Same as ReadableStreamDefaultReader: cancel()
+	 *
+	 * @param reason 	A human-readable reason for the cancellation.
+	 * 					This value may or may not be used.
+	 * @returns A Promise, which fulfills with the value given in the reason parameter.
+	 */
+	public cancel(reason?: string): Promise<void> {
+		return this.reader.cancel(reason);
+	}
+
+	/**
 	 * Reads from the reader.
 	 *
 	 * The returned `Promise` resolves to `true` if the next chunk was read
@@ -218,9 +229,9 @@ export class ReadableStreamBufferedLineReader implements BufferedLineReader {
 		// ! if chunks are big "chunk.split()" is a performance bottleneck
 
 		/*
-		Handle a line being separated into two chunks, for example:
-		
-		file:         "123\n456\n789\n"
+			Handle a line being separated into two chunks, for example:
+
+			file:         "123\n456\n789\n"
 			firstChunk:   "123\n45"
 			secondChunk:  "6\n789\n"
 

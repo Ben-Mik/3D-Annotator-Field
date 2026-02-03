@@ -2,7 +2,7 @@
 
 module.exports = {
 	content: ["./src/**/*.{js,jsx,ts,tsx}"],
-	plugins: [require("daisyui")],
+	plugins: [require("daisyui"), require("tailwind-scrollbar")],
 
 	// daisyUI config (optional)
 	daisyui: {

@@ -1,0 +1,27 @@
+# backend
+backend/.env
+backend/env
+backend/.venv
+backend/venv
+
+backend/media
+backend/db
+backend/static
+
+# frontend
+frontend/node_modules
+
+frontend/build
+frontend/coverage
+
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# general
+
+**/.git
+
+**/.vscode
+
+.DS_Store

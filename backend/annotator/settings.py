@@ -30,9 +30,9 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "") != "false"
+DEBUG = os.environ.get("DJANGO_DEBUG", "false") == "true"
 
-use_ssl = os.environ.get("DJANGO_USE_SSL", "") == "true"
+use_ssl = os.environ.get("DJANGO_USE_SSL", "false") == "true"
 SESSION_COOKIE_SECURE = use_ssl
 CSRF_COOKIE_SECURE = use_ssl
 
@@ -157,13 +157,15 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "annotator.backend.exceptions.code_exception_handler",
 }
 
+TOKEN_LIMIT_ENV = int(os.environ.get("DJANGO_TOKEN_LIMIT_PER_USER", "1"))
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=24),
     "USER_SERIALIZER": "annotator.backend.serializers.UserSerializer",
-    "TOKEN_LIMIT_PER_USER": 1,
+    "TOKEN_LIMIT_PER_USER": TOKEN_LIMIT_ENV if TOKEN_LIMIT_ENV > 0 else None,
     "AUTO_REFRESH": True,  # refresh expiry date when token is used
     "MIN_REFRESH_INTERVAL": 0,
 }
+
 
 MEDIA_ROOT = BASE_DIR / "media"
 

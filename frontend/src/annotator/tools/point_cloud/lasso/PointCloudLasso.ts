@@ -17,7 +17,7 @@ import {
 } from "three-mesh-bvh";
 import { type AnnotationManager } from "~annotator/annotation/AnnotationManager";
 import { type UndoManager } from "~annotator/annotation/undo/UndoManager";
-import { getHeightAt, getWidthAt } from "~annotator/scene/Camera";
+import { getHeightAt, getWidthAt, type Camera } from "~annotator/scene/Camera";
 import { type Scene } from "~annotator/scene/Scene";
 import { type PointCloud } from "~annotator/scene/model/PointCloud";
 import { Tool } from "~annotator/tools/Tool";
@@ -29,23 +29,38 @@ import {
 	getConvexHull,
 	lineCrossesLine,
 	pointRayCrossesSegments,
-} from "~annotator/tools/common/math/MathUtils";
+} from "~annotator/tools/common/utils/MathUtils";
+import type { SelectionBuffer } from "~annotator/tools/common/utils/SelectionBuffer";
+import { ColorSetting } from "~settings/Settings";
+import { createSettingsManager } from "~settings/SettingsManager";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import { PointCloudLassoButton } from "./PointCloudLassoButton";
 import { PointCloudLassoQuickSettingsView } from "./PointCloudLassoQuickSettingsView";
+import { PointCloudLassoSettingsView } from "./PointCloudLassoSettingsView";
 
 const NAME = "POINT_CLOUD_LASSO";
 const DISTANCE_FROM_CAMERA = 0.1;
+
+export const POINT_CLOUD_LASSO_SETTINGS = {
+	lineColor: new ColorSetting("lineColor", 0xff9800),
+};
+
+const settingsRegistry = new LocalStorageSettingsRegistry(NAME + "-Kd7M5");
+settingsRegistry.registerMultiple(POINT_CLOUD_LASSO_SETTINGS);
 
 /**
  * A lasso tool to select point cloud data
  * (inspired by https://github.com/gkjohnson/three-mesh-bvh)
  */
 export class PointCloudLasso extends Tool<PointCloud> {
+	private readonly settings;
+
+	private bvhMesh?: ThreeMesh;
+
 	private selectionShape!: Line;
 	private selectionPoints: number[] = [];
 	private selectionShapeNeedsUpdate = false;
 	private selectionNeedsUpdate = false;
-	private bvhMesh?: ThreeMesh;
 
 	private pressed = false;
 
@@ -95,9 +110,12 @@ export class PointCloudLasso extends Tool<PointCloud> {
 	constructor(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<PointCloud>
+		scene: Scene<PointCloud>,
+		selectionBuffer: SelectionBuffer
 	) {
-		super(NAME, annotationManager, undoManager, scene);
+		super(NAME, annotationManager, undoManager, scene, selectionBuffer);
+
+		this.settings = createSettingsManager(POINT_CLOUD_LASSO_SETTINGS);
 	}
 
 	protected override getOnSelectedListenerBundles(): ListenerBundle[] {
@@ -108,16 +126,26 @@ export class PointCloudLasso extends Tool<PointCloud> {
 		// selection shape
 		this.selectionShape = new Line(
 			new BufferGeometry(),
-			new LineBasicMaterial({ color: "#ff9800" })
+			this.createSelectionShapeMaterial(this.settings.lineColor)
 		) as Line;
 		this.selectionShape.renderOrder = 1;
 		this.selectionShape.position.z = -DISTANCE_FROM_CAMERA;
+
+		this.settings.onChange("lineColor", ({ new: color }) => {
+			this.selectionShape.material =
+				this.createSelectionShapeMaterial(color);
+		});
 	}
 
-	protected override onDispose(): void {
+	private createSelectionShapeMaterial(color: number) {
+		return new LineBasicMaterial({ color });
+	}
+
+	protected override onDestroy(): void {
 		for (const camera of this.scene.cameras) {
 			camera.remove(this.selectionShape);
 		}
+		this.settings.unsubscribeAll();
 	}
 
 	protected override onSelected(): void {
@@ -168,8 +196,20 @@ export class PointCloudLasso extends Tool<PointCloud> {
 		this.scene.camera.remove(this.selectionShape);
 	}
 
+	protected override onCameraChange(
+		oldCamera: Camera,
+		newCamera: Camera
+	): void {
+		oldCamera.remove(this.selectionShape);
+		newCamera.add(this.selectionShape);
+	}
+
 	public getToolButtonComponent() {
 		return PointCloudLassoButton;
+	}
+
+	public override getSettingsComponent() {
+		return PointCloudLassoSettingsView;
 	}
 
 	public getQuickSettingsComponent() {
@@ -303,8 +343,8 @@ export class PointCloudLasso extends Tool<PointCloud> {
 					min: Vector3;
 					max: Vector3;
 				},
-				isLeaf: boolean,
-				score,
+				_isLeaf: boolean,
+				_score,
 				depth: number
 			) => {
 				// Get the bounding box points

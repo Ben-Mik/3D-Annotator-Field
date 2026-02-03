@@ -4,8 +4,8 @@ import {
 	TextureLoader as ThreeTextureLoader,
 	type Texture,
 } from "three";
-import { type Observer } from "~entity/Types";
-import { hasFileExtension } from "~util/FileUtils";
+import { type Observer } from "~events/Events";
+import { hasFileExtension } from "~util/fileSystem/FileUtils";
 import { type Loader } from "./Loader";
 
 export const TEXTURE_FILE_EXTENSIONS = ["jpg", "jpeg", "png"];
@@ -42,7 +42,6 @@ export class TextureLoader implements Loader<Texture> {
 			URL.revokeObjectURL(textureURL);
 		}
 
-		console.log("texture: ", texture);
 		return Promise.resolve(ok(texture));
 	}
 }

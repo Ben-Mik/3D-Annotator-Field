@@ -1,8 +1,14 @@
 import { Matrix4, Raycaster, Vector3, type Mesh as ThreeMesh } from "three";
 import type { UndoManager } from "~annotator/annotation/undo/UndoManager";
-import { getHeightAt, getWidthAt } from "~annotator/scene/Camera";
-import { Circle } from "~annotator/tools/common/elements/circle/Circle";
+import { getHeightAt, getWidthAt, type Camera } from "~annotator/scene/Camera";
+import {
+	Circle,
+	createDefaultCircleScaleSetting,
+	createDefaultCircleSettings,
+} from "~annotator/tools/common/elements/circle/Circle";
 import { PointerUndoHandler } from "~annotator/tools/common/undo/PointerUndoHandler";
+import type { SelectionBuffer } from "~annotator/tools/common/utils/SelectionBuffer";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import type { AnnotationManager } from "../../../annotation/AnnotationManager";
 import { type Scene } from "../../../scene/Scene";
 import { type PointCloud } from "../../../scene/model/PointCloud";
@@ -11,22 +17,25 @@ import { type ListenerBundle } from "../../common/listener/Listener";
 import { MouseButtons } from "../../common/listener/PointerListenerBundle";
 import { PointCloudBrushButton } from "./PointCloudBrushButton";
 import { PointCloudBrushQuickSettingsView } from "./PointCloudBrushQuickSettingsView";
+import { PointCloudBrushSettingsView } from "./PointCloudBrushSettingsView";
 
 const NAME = "POINT_CLOUD_BRUSH";
 const DISTANCE_FROM_CAMERA = 0.1;
 const CURSOR: Cursor = "none";
+
+export const POINT_CLOUD_BRUSH_SETTINGS = {
+	scale: createDefaultCircleScaleSetting(),
+	circle: createDefaultCircleSettings(),
+};
+/* cspell:disable-next-line */
+const settingsRegistry = new LocalStorageSettingsRegistry(NAME + "-P4drz");
+settingsRegistry.registerMultiple(POINT_CLOUD_BRUSH_SETTINGS);
 
 /**
  * A spotlight tool to select points of point clouds.
  * (inspired by https://github.com/gkjohnson/three-mesh-bvh)
  */
 export class PointCloudBrush extends Tool<PointCloud> {
-	public readonly params = {
-		raycastThreshold: 0.005,
-		size: 0.1,
-		useBVH: true,
-	};
-
 	private bvhMesh?: ThreeMesh;
 
 	private circle!: Circle;
@@ -36,9 +45,10 @@ export class PointCloudBrush extends Tool<PointCloud> {
 	constructor(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<PointCloud>
+		scene: Scene<PointCloud>,
+		selectionBuffer: SelectionBuffer
 	) {
-		super(NAME, annotationManager, undoManager, scene);
+		super(NAME, annotationManager, undoManager, scene, selectionBuffer);
 	}
 
 	protected override getOnSelectedListenerBundles(): ListenerBundle[] {
@@ -50,7 +60,11 @@ export class PointCloudBrush extends Tool<PointCloud> {
 	}
 
 	protected onLoad(): void {
-		this.circle = new Circle();
+		this.circle = new Circle(
+			POINT_CLOUD_BRUSH_SETTINGS.scale,
+			getHeightAt(this.scene.camera, DISTANCE_FROM_CAMERA),
+			POINT_CLOUD_BRUSH_SETTINGS.circle
+		);
 	}
 
 	protected onSelected(): void {
@@ -62,7 +76,9 @@ export class PointCloudBrush extends Tool<PointCloud> {
 
 		const height = getHeightAt(this.scene.camera, DISTANCE_FROM_CAMERA);
 
-		this.circle.setScale(this.params.size, height);
+		this.circle.setScaleFactor(
+			getHeightAt(this.scene.camera, DISTANCE_FROM_CAMERA)
+		);
 
 		if (this.pointer.hasMoved) {
 			if (!this.circle.isVisible()) {
@@ -92,11 +108,22 @@ export class PointCloudBrush extends Tool<PointCloud> {
 		this.scene.camera.remove(...this.circle.getObjects());
 	}
 
-	protected onDispose(): void {
+	protected onDestroy(): void {
 		for (const camera of this.scene.cameras) {
 			camera.remove(...this.circle.getObjects());
 		}
-		this.circle.dispose();
+		this.circle.destroy();
+	}
+
+	protected override onCameraChange(
+		oldCamera: Camera,
+		newCamera: Camera
+	): void {
+		oldCamera.add(...this.circle.getObjects());
+		newCamera.remove(...this.circle.getObjects());
+		this.circle.setScaleFactor(
+			getHeightAt(this.scene.camera, DISTANCE_FROM_CAMERA)
+		);
 	}
 
 	/**
@@ -115,7 +142,7 @@ export class PointCloudBrush extends Tool<PointCloud> {
 		const raycaster = new Raycaster();
 		raycaster.setFromCamera(this.pointer.position, this.scene.camera);
 
-		const size = this.params.size;
+		const size = POINT_CLOUD_BRUSH_SETTINGS.scale.getAsNumber();
 
 		const inverseMatrix = new Matrix4();
 		inverseMatrix.copy(this.bvhMesh!.matrixWorld).invert();
@@ -170,6 +197,10 @@ export class PointCloudBrush extends Tool<PointCloud> {
 
 	public getToolButtonComponent() {
 		return PointCloudBrushButton;
+	}
+
+	public override getSettingsComponent() {
+		return PointCloudBrushSettingsView;
 	}
 
 	public getQuickSettingsComponent() {

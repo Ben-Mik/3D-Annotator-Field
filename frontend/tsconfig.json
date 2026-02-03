@@ -3,15 +3,20 @@
 		"baseUrl": "src",
 		"paths": {
 			"env": ["env"],
+			"~anno3d/*": ["anno3d/*"],
 			"~annotator/*": ["annotator/*"],
 			"~api/*": ["api/*"],
 			"~assets/*": ["assets/*"],
+			"~cache/*": ["cache/*"],
 			"~entity/*": ["entity/*"],
+			"~events/*": ["events/*"],
+			"~settings/*": ["settings/*"],
 			"~ui/*": ["ui/*"],
-			"~util/*": ["util/*"]
+			"~util/*": ["util/*"],
+			"~workers/*": ["workers/*"]
 		},
 		"target": "es2015",
-		"lib": ["dom", "dom.iterable", "esnext"],
+		"lib": ["dom", "dom.iterable", "esnext", "WebWorker"],
 		"allowJs": false,
 		"skipLibCheck": true,
 		"esModuleInterop": true,

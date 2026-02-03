@@ -1,55 +1,75 @@
 import { ok, type Result } from "neverthrow";
 import {
-	OrthographicCamera,
-	PerspectiveCamera,
-	Color as ThreeColor,
+	OrthographicCamera as ThreeOrthographicCamera,
+	PerspectiveCamera as ThreePerspectiveCamera,
 	Scene as ThreeScene,
 	WebGLRenderer,
-	type Renderer,
 } from "three";
 import Stats from "three/examples/jsm/libs/stats.module";
+import type { CacheScope } from "~cache/index";
+import { type Destroyable } from "~entity/Types";
+import { EventManager } from "~events/EventManager";
+import type { Observer, Subscribable } from "~events/Events";
+import { ColorSetting } from "~settings/Settings";
+import { createSettingsManager } from "~settings/SettingsManager";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import {
-	type Disposable,
-	type Observer,
-	type Unsubscribe,
-} from "~entity/Types";
-import { type Camera } from "./Camera";
+	type Camera,
+	type OrthographicCamera,
+	type PerspectiveCamera,
+} from "./Camera";
 import { ArcballCameraControls } from "./controls/ArcballCameraControls";
-import { type CameraControls } from "./controls/CameraControls";
-import { GlobalLighting } from "./lighting/GlobalLighting";
-import { SunLighting } from "./lighting/SunLighting";
+import {
+	CAMERA_CONTROLS_SETTINGS,
+	type CameraControls,
+} from "./controls/CameraControls";
+import { GlobalLighting } from "./lighting/global/GlobalLighting";
+import { SunLighting } from "./lighting/sun/SunLighting";
 import { type LoaderError } from "./model/loader/Loader";
 import { type Model } from "./model/Model";
 import { SceneManager } from "./SceneManager";
 import { type SceneSubject } from "./SceneSubject";
 
-// background color of the scene
-export const ANNOTATOR_BG_COLOR = "#3C3C3C";
+export const SCENE_SETTINGS = {
+	backgroundColor: new ColorSetting("backgroundColor", 0x3c3c3c),
+};
 
-const BG_COLOR = new ThreeColor(ANNOTATOR_BG_COLOR);
+const settingsRegistry = new LocalStorageSettingsRegistry("scene-kX9pB");
+settingsRegistry.registerMultiple(SCENE_SETTINGS);
 
 const ORTHOGRAPHIC_CAMERA_CONFIG = {
 	FRUSTUM_SIZE: 100,
 	MIN_CLIP: 0.1,
-	MAX_CLIP: 100000,
+	MAX_CLIP: 100_000,
 };
 
 const PERSPECTIVE_CAMERA_CONFIG = {
-	// camera field of view
-	FOV: 30,
 	// min. distance of visible objects
 	MIN_CLIP: 0.1,
 	// max. distance of visible objects
-	MAX_CLIP: 10000,
+	MAX_CLIP: 10_000,
 	// initial x position of the camera
 	INIT_CAM_X: 0,
 };
 
-export abstract class Scene<T extends Model> implements Disposable {
+export type SceneEvents = {
+	beforeRender: void;
+};
+
+export abstract class Scene<T extends Model>
+	implements Subscribable<SceneEvents>, Destroyable
+{
+	private readonly settings;
+
+	private readonly eventManager = new EventManager<SceneEvents>();
+	public on = this.eventManager.on.bind(this.eventManager);
+
 	private readonly orthographicCamera: OrthographicCamera;
 	private readonly perspectiveCamera: PerspectiveCamera;
 
-	public readonly renderer: Renderer;
+	public readonly renderer: WebGLRenderer;
+
+	protected readonly cacheScope: CacheScope;
 
 	protected model?: T;
 
@@ -74,7 +94,11 @@ export abstract class Scene<T extends Model> implements Disposable {
 	 *
 	 * @param sceneParent the element which to add the rendere's dom element to
 	 */
-	constructor(sceneParent: HTMLDivElement) {
+	constructor(scope: CacheScope, sceneParent: HTMLDivElement) {
+		this.settings = createSettingsManager(SCENE_SETTINGS);
+
+		this.cacheScope = scope;
+
 		this.parentElement = sceneParent;
 		const rect = sceneParent.getBoundingClientRect();
 
@@ -92,6 +116,9 @@ export abstract class Scene<T extends Model> implements Disposable {
 		this.sunLighting = new SunLighting(this);
 
 		this.renderer = this.createRenderer(rect.width, rect.height);
+		this.settings.onChange("backgroundColor", ({ new: color }) => {
+			this.renderer.setClearColor(color);
+		});
 
 		this.resizeHandler = this.handleResize.bind(this);
 	}
@@ -113,33 +140,6 @@ export abstract class Scene<T extends Model> implements Disposable {
 	 */
 	public createSceneManager(): SceneManager {
 		return new SceneManager(this, this.scene, this.stats);
-	}
-
-	/**
-	 * Adds a new render observer to the scene manager.
-	 * All render observers are called **inside** the requestAnimationFrame callback
-	 * **before** the renderer and the camera controls are updated.
-	 *
-	 * To unsubscribe the observer, call the returned unsubscribe function.
-	 *
-	 * @param observer the observer to be added
-	 * @returns the unsubscribe function
-	 */
-	public addRenderObserver(observer: Observer<void>): Unsubscribe {
-		this.renderObservers.add(observer);
-
-		return () => {
-			this.renderObservers.delete(observer);
-		};
-	}
-
-	/**
-	 * Notifies all subscribed Observers.
-	 */
-	private notifyRenderObservers() {
-		for (const observer of this.renderObservers) {
-			observer();
-		}
 	}
 
 	/**
@@ -203,7 +203,8 @@ export abstract class Scene<T extends Model> implements Disposable {
 			subject.update();
 		}
 
-		this.notifyRenderObservers();
+		this.eventManager.emit("beforeRender", undefined);
+
 		this.renderer.render(this.scene, this.camera);
 
 		this.stats.end();
@@ -291,19 +292,21 @@ export abstract class Scene<T extends Model> implements Disposable {
 	public removeSceneSubject(sceneSubject: SceneSubject): void {
 		this.scene.remove(...sceneSubject.getObjects());
 		this.sceneSubjects.delete(sceneSubject);
-		sceneSubject.dispose();
 	}
 
 	/**
-	 * Disposes the render loop
+	 * Destroys the scene
 	 * 1. stops render loop
 	 * 2. clears all observers
 	 * 2. clears the scene
-	 * 3. disposes all scene subjects
+	 * 3. destroys all scene subjects
 	 * 4. clears all scene subjects
-	 * 5. disposes the camera controls
+	 * 5. destroys the camera controls
 	 */
-	public dispose() {
+	public destroy() {
+		this.settings.unsubscribeAll();
+		this.eventManager.destroy();
+
 		this.stopRenderLoop();
 
 		if (this.parentElement.contains(this.renderer.domElement)) {
@@ -317,12 +320,12 @@ export abstract class Scene<T extends Model> implements Disposable {
 		this.scene.clear();
 
 		for (const subject of this.sceneSubjects) {
-			subject.dispose();
+			subject.destroy();
 		}
 		this.sceneSubjects.clear();
 
 		if (this.cameraControls) {
-			this.cameraControls.dispose();
+			this.cameraControls.destroy();
 			this.cameraControls = undefined;
 		}
 	}
@@ -336,18 +339,22 @@ export abstract class Scene<T extends Model> implements Disposable {
 		return this.renderer.domElement;
 	}
 
+	public getAspect(): number {
+		return this.renderer.domElement.width / this.renderer.domElement.height;
+	}
+
 	private createPerspectiveCamera(
 		width: number,
 		height: number
 	): PerspectiveCamera {
 		const aspectRatio = width / height;
-		const camera = new PerspectiveCamera(
-			PERSPECTIVE_CAMERA_CONFIG.FOV,
+		const camera = new ThreePerspectiveCamera(
+			CAMERA_CONTROLS_SETTINGS.fov.get(),
 			aspectRatio,
 			PERSPECTIVE_CAMERA_CONFIG.MIN_CLIP,
 			PERSPECTIVE_CAMERA_CONFIG.MAX_CLIP
 		);
-		return camera;
+		return camera as PerspectiveCamera;
 	}
 
 	private createOrthographicCamera(
@@ -356,7 +363,7 @@ export abstract class Scene<T extends Model> implements Disposable {
 	): OrthographicCamera {
 		const aspectRatio = width / height;
 		const frustumSize = ORTHOGRAPHIC_CAMERA_CONFIG.FRUSTUM_SIZE;
-		const camera = new OrthographicCamera(
+		const camera = new ThreeOrthographicCamera(
 			(frustumSize * aspectRatio) / -2,
 			(frustumSize * aspectRatio) / 2,
 			frustumSize / 2,
@@ -364,18 +371,18 @@ export abstract class Scene<T extends Model> implements Disposable {
 			ORTHOGRAPHIC_CAMERA_CONFIG.MIN_CLIP,
 			ORTHOGRAPHIC_CAMERA_CONFIG.MAX_CLIP
 		);
-		return camera;
+		return camera as OrthographicCamera;
 	}
 
 	/**
 	 * Creates a new WebGLRenderer
 	 * @return the renderer
 	 */
-	private createRenderer(width: number, height: number): Renderer {
+	private createRenderer(width: number, height: number): WebGLRenderer {
 		const renderer = new WebGLRenderer({
 			antialias: true,
 		});
-		renderer.setClearColor(BG_COLOR);
+		renderer.setClearColor(SCENE_SETTINGS.backgroundColor.get());
 		renderer.setSize(width, height);
 		return renderer;
 	}

@@ -6,7 +6,7 @@ import { ModelType } from "~entity/ModelInformation";
 import { ElementList } from "~ui/components/ElementList";
 import { useAPI } from "~ui/contexts/APIContext";
 import { ModelDataPreviewItem } from "~ui/pages/project/addModel/ModelDataPreviewItem";
-import { fileExtension, fileName } from "~util/FileUtils";
+import { fileExtension, fileName } from "~util/fileSystem/FileUtils";
 import { assertUnreachable } from "~util/TypeScript";
 import { useProjectPageStore } from "../ProjectPage";
 
@@ -22,10 +22,6 @@ export interface ModelDataPreview {
 }
 
 const LL = getI18NContext();
-
-const NO_MODEL_DATA_PREVIEWS_MSG = LL.NO_MODEL_DATA_PREVIEWS_MSG();
-const NO_MODEL_TYPE_MSG = LL.NO_MODEL_TYPE_MSG();
-const UNNAMED_MODEL_DATA_PREVIEW_MSG = LL.UNNAMED_MODEL_DATA_PREVIEW_MSG();
 
 export function AddModelDataModalController({
 	projectId,
@@ -45,51 +41,84 @@ export function AddModelDataModalController({
 		name: string,
 		modelType: ModelType,
 		modelFile: File,
-		textureFile?: File,
-		annotationFile?: File
+		textureFile: File | undefined,
+		annotationFile: File | undefined,
+		nr: number,
+		total: number
 	) {
-		const modelsRes = await api.models.add({
-			name: name,
-			modelType: modelType,
-			projectId: projectId,
+		const res = await api.models.add({
+			name,
+			modelType,
+			projectId,
 		});
 
-		if (modelsRes.isErr()) {
-			return Promise.reject();
+		if (res.isErr()) {
+			return Promise.reject(res.error);
 		}
 
-		const modelInformation = modelsRes.value;
+		const modelInformation = res.value;
 		const fileStreams = [
-			{ stream: modelFile.stream(), name: modelFile.name },
+			{
+				data: modelFile.stream(),
+				name: modelFile.name,
+				size: modelFile.size,
+			},
 		];
 		if (textureFile) {
 			fileStreams.push({
-				stream: textureFile.stream(),
+				data: textureFile.stream(),
 				name: textureFile.name,
+				size: textureFile.size,
 			});
 		}
 
-		const id = toast.info(LL.COMPRESSING(), {
+		const toastProgressText = nr && total ? `[${nr}/${total}] ` : "";
+
+		const id = toast.info(toastProgressText + LL.COMPRESSING(), {
 			isLoading: true,
 		});
 
 		const filesRes = await api.files.uploadModel(
 			modelInformation.id,
 			fileStreams,
-			(n) => {
-				toast.update(id, {
-					progress: n / 100,
-					isLoading: false,
-					render: LL.UPLOADING(),
-				});
+			{
+				onCompressionProgress: (n) => {
+					if (n != 100) {
+						toast.update(id, {
+							progress: n / 100,
+							isLoading: false,
+							render: toastProgressText + LL.COMPRESSING(),
+						});
+					}
+				},
+				onUploadProgress: (n) => {
+					toast.update(id, {
+						progress: n / 100,
+						isLoading: false,
+						render: toastProgressText + LL.UPLOADING(),
+					});
+				},
 			}
 		);
 
 		if (filesRes.isErr()) {
 			const error = filesRes.error;
 
+			const errorInfoText = ` (${modelFile.name})`;
 			switch (error.code) {
 				case Errors.NETWORK:
+					toast.update(id, {
+						progress: 0,
+						hideProgressBar: true,
+						isLoading: false,
+						autoClose: 5000,
+						type: "error",
+						render:
+							toastProgressText +
+							LL.NETWORK_ERROR() +
+							errorInfoText,
+					});
+					console.log("network error" + errorInfoText);
 					break;
 				case Errors.LARGE_FILE:
 					toast.update(id, {
@@ -98,9 +127,12 @@ export function AddModelDataModalController({
 						isLoading: false,
 						autoClose: 5000,
 						type: "error",
-						render: LL.ANNOTATION_FILE_TOO_BIG(),
+						render:
+							toastProgressText +
+							LL.ANNOTATION_FILE_TOO_BIG() +
+							errorInfoText,
 					});
-					console.log("large file");
+					console.log("large file" + errorInfoText);
 					break;
 				case Errors.EXISTING_BASE_FILE:
 					toast.update(id, {
@@ -109,9 +141,12 @@ export function AddModelDataModalController({
 						isLoading: false,
 						autoClose: 5000,
 						type: "error",
-						render: LL.BASE_FILE_ALREADY_EXISTS(),
+						render:
+							toastProgressText +
+							LL.BASE_FILE_ALREADY_EXISTS() +
+							errorInfoText,
 					});
-					console.log("existing base file");
+					console.log("existing base file" + errorInfoText);
 					break;
 
 				default:
@@ -124,21 +159,52 @@ export function AddModelDataModalController({
 		if (annotationFile) {
 			const fileRes = await api.files.uploadAnnotationFile(
 				modelInformation.id,
-				annotationFile.stream(),
-				(n) => {
-					toast.update(id, {
-						progress: n / 100,
-						isLoading: false,
-						render: LL.UPLOADING(),
-					});
+				{
+					data: annotationFile.stream(),
+					size: annotationFile.size,
+				},
+				{
+					onCompressionProgress: (n) => {
+						if (n != 100) {
+							toast.update(id, {
+								progress: n / 100,
+								isLoading: false,
+								render:
+									toastProgressText +
+									LL.COMPRESSING_ANNOTATION_FILE(),
+							});
+						}
+					},
+					onUploadProgress: (n) => {
+						toast.update(id, {
+							progress: n / 100,
+							isLoading: false,
+							render:
+								toastProgressText +
+								LL.UPLOADING_ANNOTATION_FILE(),
+						});
+					},
 				}
 			);
 
 			if (fileRes.isErr()) {
 				const error = fileRes.error;
+				const errorInfoText = ` (${annotationFile.name})`;
 
 				switch (error.code) {
 					case Errors.NETWORK:
+						toast.update(id, {
+							progress: 0,
+							hideProgressBar: true,
+							isLoading: false,
+							autoClose: 5000,
+							type: "error",
+							render:
+								toastProgressText +
+								LL.NETWORK_ERROR() +
+								errorInfoText,
+						});
+						console.log("network error" + errorInfoText);
 						break;
 					case Errors.LARGE_FILE:
 						toast.update(id, {
@@ -147,7 +213,10 @@ export function AddModelDataModalController({
 							isLoading: false,
 							autoClose: 5000,
 							type: "error",
-							render: LL.ANNOTATION_FILE_TOO_BIG(),
+							render:
+								toastProgressText +
+								LL.ANNOTATION_FILE_TOO_BIG() +
+								errorInfoText,
 						});
 						console.log("large file");
 						break;
@@ -158,7 +227,10 @@ export function AddModelDataModalController({
 							isLoading: false,
 							autoClose: 5000,
 							type: "error",
-							render: LL.MODEL_LOCKED(),
+							render:
+								toastProgressText +
+								LL.MODEL_LOCKED() +
+								errorInfoText,
 						});
 						console.log("model locked");
 						break;
@@ -176,11 +248,11 @@ export function AddModelDataModalController({
 			isLoading: false,
 			autoClose: 3000,
 			type: "success",
-			render: LL.UPLOAD_SUCCESS(),
+			render: toastProgressText + LL.UPLOAD_SUCCESS(),
 		});
 
 		setLoading(true);
-		return Promise.resolve(modelInformation);
+		return modelInformation;
 	}
 
 	const filePickerOpts = {
@@ -201,6 +273,8 @@ export function AddModelDataModalController({
 						".TXT" as const,
 						".anno3d" as const,
 						".ANNO3D" as const,
+						".png" as const,
+						".PNG" as const,
 					],
 				},
 			},
@@ -228,8 +302,8 @@ export function AddModelDataModalController({
 	async function onFolderSelect() {
 		try {
 			const folderHandle = await window.showDirectoryPicker();
-
 			const files: File[] = [];
+			setModelDataPreviews([]);
 
 			for await (const [, value] of folderHandle.entries()) {
 				if (value.kind === "file") files.push(await value.getFile());
@@ -248,7 +322,9 @@ export function AddModelDataModalController({
 
 		const modelFileRegEx = new RegExp("(obj)|(OBJ)|(ply)|(PLY)");
 		const textureFileRegEx = new RegExp("(jpeg)|(JPEG)|(jpg)|(JPG)");
-		const annotationFileRegEx = new RegExp("(txt)|(TXT)|(anno3d)|(ANNO3D)");
+		const annotationFileRegEx = new RegExp(
+			"(txt)|(TXT)|(anno3d)|(ANNO3D)|(png)|(PNG)"
+		);
 
 		for (const file of files) {
 			const extension = fileExtension(file);
@@ -375,15 +451,15 @@ export function AddModelDataModalController({
 		return previewItems;
 	}
 
-	function upload() {
+	async function upload() {
 		setError({ error: false, message: "" });
 		if (modelDataPreviews.length === 0) {
-			setError({ error: true, message: NO_MODEL_DATA_PREVIEWS_MSG });
+			setError({ error: true, message: LL.NO_MODEL_DATA_PREVIEWS_MSG() });
 			return;
 		}
 
 		if (!modelType) {
-			setError({ error: true, message: NO_MODEL_TYPE_MSG });
+			setError({ error: true, message: LL.NO_MODEL_TYPE_MSG() });
 			return;
 		}
 
@@ -391,26 +467,41 @@ export function AddModelDataModalController({
 			if (!preview.name) {
 				setError({
 					error: true,
-					message: UNNAMED_MODEL_DATA_PREVIEW_MSG,
+					message: LL.UNNAMED_MODEL_DATA_PREVIEW_MSG(),
+				});
+				return;
+			}
+
+			if (modelType === ModelType.TEXTURE_MESH && !preview.textureFile) {
+				setError({
+					error: true,
+					message: `${LL.NO_TEXTURE_MSG()} (${preview.name})`,
 				});
 				return;
 			}
 		}
 
-		modelDataPreviews.forEach((preview) => {
-			const textureFile =
-				modelType === ModelType.MESH ? preview.textureFile : undefined;
+		const previews = [...modelDataPreviews];
+		setModelDataPreviews([]);
+		setModalOpen(false);
 
-			addModelData(
+		for (let i = 0; i < previews.length; i++) {
+			const preview = previews[i];
+			const textureFile =
+				modelType !== ModelType.POINT_CLOUD
+					? preview.textureFile
+					: undefined;
+
+			await addModelData(
 				preview.name,
 				modelType,
 				preview.modelFile,
 				textureFile,
-				preview.annotationFile
+				preview.annotationFile,
+				i + 1,
+				previews.length
 			);
-		});
-
-		setModelDataPreviews([]);
+		}
 	}
 
 	return (
@@ -435,8 +526,8 @@ export function AddModelDataModalController({
 					}}
 				/>
 
-				<div className="modal px-80 py-20">
-					<div className="modal-box max-h-full min-w-full max-w-fit">
+				<div className="modal  py-20">
+					<div className="modal-box max-h-full max-w-5xl">
 						<label
 							htmlFor="add-model-modal"
 							className="btn btn-circle btn-sm absolute right-4 top-4"
@@ -470,6 +561,26 @@ export function AddModelDataModalController({
 										checked={modelType === ModelType.MESH}
 										onChange={() => {
 											setModelType(ModelType.MESH);
+										}}
+									/>
+								</label>
+							</div>
+							<div className="form-control">
+								<label className="label cursor-pointer">
+									<span className="label-text">
+										{LL.TRIANGLE_MESH_TEXTURE()}
+									</span>
+									<input
+										type="radio"
+										name="mesh"
+										className="checked:primary radio"
+										checked={
+											modelType === ModelType.TEXTURE_MESH
+										}
+										onChange={() => {
+											setModelType(
+												ModelType.TEXTURE_MESH
+											);
 										}}
 									/>
 								</label>

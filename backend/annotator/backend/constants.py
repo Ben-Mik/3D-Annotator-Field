@@ -1,3 +1,5 @@
+import os
+
 # File for storing/editing constants
 
 # Model constants
@@ -14,7 +16,9 @@ MODELDATA_MODELTYPE_MAX_LENGTH = 30
 
 FILE_FILEPATH_MAX_LENGTH = 255
 FILE_FILEFORMAT_MAX_LENGTH = 30
-FILE_MAX_FILESIZE = 1000 * pow(2, 20)
+FILE_MAX_FILESIZE = float(os.environ.get("ANNOTATOR_BACKEND_MAX_FILE_SIZE", "1")) * pow(
+    2, 30
+)
 
 LABEL_NAME_MAX_LENGTH = 100
 

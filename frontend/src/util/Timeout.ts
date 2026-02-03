@@ -24,13 +24,14 @@ export function waitRAF(): Promise<void> {
 }
 
 /**
- * Returns a new function that executes the given function only if a given number
- * of milliseconds have passed since the last execution or if the `execute` flag is
- * set to `true`.
+ * Returns a new proxy function that executes the given function only if a given number
+ * of milliseconds have passed since the last execution or if the `execute` flag is set
+ * to `true`. The proxy returns `true` if the given function was actually executed and
+ * `false` otherwise.
  *
  * @param fn the function to execute
  * @param interval the interval in milliseconds (default is 10 ms)
- * @returns the created function
+ * @returns the proxy function
  */
 export function createTimeoutProxy<T>(fn: (value: T) => void, interval = 10) {
 	let lastExecutionTime = performance.now();
@@ -39,6 +40,8 @@ export function createTimeoutProxy<T>(fn: (value: T) => void, interval = 10) {
 		if (currentTime - lastExecutionTime >= interval || execute) {
 			fn(argument);
 			lastExecutionTime = currentTime;
+			return true;
 		}
+		return false;
 	};
 }

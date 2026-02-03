@@ -1,7 +1,7 @@
 import { ok, type Result } from "neverthrow";
 import { type BufferGeometry } from "three";
-import { type Observer } from "~entity/Types";
-import { hasFileExtension } from "~util/FileUtils";
+import { type Observer } from "~events/Events";
+import { hasFileExtension } from "~util/fileSystem/FileUtils";
 import { createGeometryFromClone } from "~util/Three";
 import { type ExcludeMethods } from "~util/TypeScript";
 import { progressInPercent } from "~util/Util";
@@ -58,7 +58,7 @@ export class NonBlockingOBJLoader implements ModelLoaderWorker {
 		}
 
 		if (this.worker === null) {
-			throw new Error("OBJLoaderWorker: Worker has been disposed.");
+			throw new Error("OBJLoaderWorker: Worker has been terminated.");
 		}
 
 		if (!hasFileExtension(modelFile, OBJ_FILE_EXTENSIONS)) {
@@ -103,7 +103,7 @@ export class NonBlockingOBJLoader implements ModelLoaderWorker {
 		});
 	}
 
-	public dispose() {
+	public destroy() {
 		if (this.worker === null) return;
 		this.worker.terminate();
 		this.worker = null;

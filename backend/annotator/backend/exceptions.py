@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from rest_framework.views import exception_handler
 from rest_framework import exceptions
@@ -21,20 +21,23 @@ def code_exception_handler(
     print(f"response: {response.data}")
 
     # convert django exceptions to rest framework exceptions
+    api_exc: APIException
     if isinstance(exc, Http404):
-        exc = exceptions.NotFound(detail=str(exc))
+        api_exc = exceptions.NotFound(detail=str(exc))
     elif isinstance(exc, PermissionDenied):
-        exc = exceptions.PermissionDenied(detail=str(exc))
-
-    if not isinstance(exc, APIException):
+        api_exc = exceptions.PermissionDenied(detail=str(exc))
+    elif isinstance(exc, APIException):
+        api_exc = exc
+    else:
+        # Unexpected exception type - should not reach here if response is not None
         return response
 
-    new_data: dict[str, str | bool | list[dict[str, str]]] = {}
-    if isinstance(exc.detail, (list, dict)):
+    new_data: dict[str, Any] = {}
+    if isinstance(api_exc.detail, (list, dict)):
         new_data["containsErrorList"] = True
-        new_data["errors"] = exc.get_full_details()
+        new_data["errors"] = api_exc.get_full_details()
 
-        if isinstance(exc, exceptions.ValidationError):
+        if isinstance(api_exc, exceptions.ValidationError):
             new_data[
                 "message"
             ] = "Some fields contain invalid values. See 'errors' for more info."
@@ -44,7 +47,7 @@ def code_exception_handler(
             new_data["code"] = "error_list"
 
     else:
-        new_data = exc.get_full_details()
+        new_data = cast(dict[str, Any], api_exc.get_full_details())
         new_data["containsErrorList"] = False
 
     response.data = new_data

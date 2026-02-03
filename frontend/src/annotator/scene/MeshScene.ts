@@ -6,6 +6,6 @@ import { Scene } from "./Scene";
  */
 export class MeshScene extends Scene<Mesh> {
 	protected createModel(): Mesh {
-		return new Mesh();
+		return new Mesh(this.cacheScope);
 	}
 }

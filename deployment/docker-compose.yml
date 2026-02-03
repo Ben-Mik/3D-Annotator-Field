@@ -1,0 +1,81 @@
+# ! Expects to be started with this directory as the working directory !
+# ! Configure all env variables for a successful deployment !
+services:
+  api:
+    container_name: "api"
+    image: "${ANNOTATOR_IMAGE_NAME_FULL_API}:latest"
+    user: "${ANNOTATOR_BACKEND_UID}:${ANNOTATOR_BACKEND_GID}"
+    volumes:
+      - ./api/static:/home/api/backend/static
+      - ./api/media:/home/api/backend/media
+      - ./api/db:/home/api/backend/db
+    expose:
+      - 8000
+    environment:
+      - DJANGO_DEBUG=${ANNOTATOR_BACKEND_DEBUG}
+      - DJANGO_SECRET_KEY=${ANNOTATOR_BACKEND_SECRET_KEY}
+      - DJANGO_USE_SSL=true
+      - DJANGO_ALLOWED_HOSTS=${ANNOTATOR_BACKEND_ALLOWED_HOSTS}
+      - DJANGO_TRUSTED_ORIGINS=${ANNOTATOR_BACKEND_CSRF_TRUSTED_ORIGINS}
+      - DJANGO_TOKEN_LIMIT_PER_USER=${ANNOTATOR_BACKEND_TOKEN_PER_USER}
+      - DJANGO_SUPERUSER_USERNAME=${ANNOTATOR_BACKEND_SU_NAME}
+      - DJANGO_SUPERUSER_EMAIL=${ANNOTATOR_BACKEND_SU_EMAIL}
+      - DJANGO_SUPERUSER_PASSWORD=${ANNOTATOR_BACKEND_SU_PASSWORD}
+      - GUNICORN_TIMEOUT=${ANNOTATOR_BACKEND_TIMEOUT}
+      - GUNICORN_NUM_WORKERS=${ANNOTATOR_BACKEND_NUM_WORKERS}
+      - ANNOTATOR_BACKEND_MAX_FILE_SIZE=${ANNOTATOR_BACKEND_MAX_FILE_SIZE}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${ANNOTATOR_DEPLOYMENT_DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.priority=10100"
+      - "traefik.http.routers.api.middlewares=strip-www-authenticate@file"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+    restart: unless-stopped
+    networks:
+      - traefik
+  static:
+    container_name: "static"
+    image: "${ANNOTATOR_IMAGE_NAME_FULL_STATIC}:latest"
+    volumes:
+      - ./api/static:/home/api_static:ro
+    expose:
+      - 80
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.static.rule=Host(`${ANNOTATOR_DEPLOYMENT_DOMAIN}`)"
+      - "traefik.http.routers.static.entrypoints=websecure"
+      - "traefik.http.routers.static.tls=true"
+      - "traefik.http.routers.static.priority=10000"
+      - "traefik.http.routers.static.middlewares=cross-origin-isolation@file"
+      - "traefik.http.routers.static-api_static.rule=Host(`${ANNOTATOR_DEPLOYMENT_DOMAIN}`) && PathPrefix(`/api/static`)"
+      - "traefik.http.routers.static-api_static.entrypoints=websecure"
+      - "traefik.http.routers.static-api_static.tls=true"
+      - "traefik.http.routers.static-api_static.priority=10200"
+      - "traefik.http.services.static.loadbalancer.server.port=80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - traefik
+  traefik:
+    container_name: traefik
+    image: traefik:v3.4
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./certs:/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    name: traefik

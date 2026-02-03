@@ -1,11 +1,24 @@
 import { type Perspective } from "~entity/Perspective";
-import { type Disposable, type Updatable } from "~entity/Types";
+import { type Destroyable, type Updatable } from "~entity/Types";
+import { NumberSetting, StringSetting } from "~settings/Settings";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import type { Camera, CameraType } from "../Camera";
 
-export interface CameraControls extends Updatable, Disposable {
+export const CAMERA_CONTROLS_SETTINGS = {
+	fov: new NumberSetting("fov", { initial: 30, min: 30, max: 90 }),
+	cameraType: new StringSetting<CameraType>(
+		"cameraType",
+		"PerspectiveCamera"
+	),
+};
+
+const settingsRegistry = new LocalStorageSettingsRegistry(
+	"cameraControls-WJ47v"
+);
+settingsRegistry.registerMultiple(CAMERA_CONTROLS_SETTINGS);
+
+export interface CameraControls extends Updatable, Destroyable {
 	getCamera(): Camera;
-	setCamera(type: CameraType): void;
-	setFOV(fov: number): void;
 	/**
 	 * Sets the camera to a new {@link Perspective}
 	 *
@@ -21,5 +34,4 @@ export interface CameraControls extends Updatable, Disposable {
 	enable(): void;
 	disable(): void;
 	resetControls(): void;
-	show(show: boolean): void;
 }

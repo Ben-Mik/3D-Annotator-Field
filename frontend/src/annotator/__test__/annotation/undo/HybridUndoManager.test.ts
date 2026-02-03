@@ -18,7 +18,10 @@ describe("HybridUndoManager", () => {
 		label2 = createLabel(0, 1);
 		labelManager = new LabelManager([label1, label2]);
 		annotationManager = new AnnotationManager(10, labelManager);
-		hybridUndoManager = new HybridUndoManager(annotationManager);
+		hybridUndoManager = new HybridUndoManager(
+			annotationManager,
+			labelManager
+		);
 	});
 
 	test("reset()", () => {
@@ -28,7 +31,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.reset(true);
 		hybridUndoManager.undo();
 
-		const annotations = annotationManager!.getAnnotations();
+		const annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 		expect(annotations[4]).toBe(label1!.annotationClass);
@@ -52,13 +55,13 @@ describe("HybridUndoManager", () => {
 		expect(res).toBeTruthy();
 	});
 
-	test("dispose()", () => {
-		hybridUndoManager.dispose();
+	test("destroy()", () => {
+		hybridUndoManager.destroy();
 		hybridUndoManager.startGroup();
 		annotationManager.annotate([0, 2]);
 		hybridUndoManager.endGroup();
 		hybridUndoManager.undo();
-		const annotations = annotationManager.getAnnotations();
+		const annotations = annotationManager.getAnnotationDataLUT();
 
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
@@ -89,7 +92,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.undo();
 		hybridUndoManager.undo();
 
-		const annotations = annotationManager!.getAnnotations();
+		const annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 	});
@@ -115,7 +118,7 @@ describe("HybridUndoManager", () => {
 			observedData = count;
 		});
 
-		hybridUndoManager.addUndoRedoCountObserver(observer);
+		hybridUndoManager.on("countChange", observer);
 		hybridUndoManager.startGroup();
 		annotationManager!.annotate([0, 2, 4]);
 		hybridUndoManager.endGroup();
@@ -131,8 +134,7 @@ describe("HybridUndoManager", () => {
 			observedData = count;
 		});
 
-		const unsubscribe =
-			hybridUndoManager.addUndoRedoCountObserver(observer);
+		const unsubscribe = hybridUndoManager.on("countChange", observer);
 		hybridUndoManager.startGroup();
 		annotationManager!.annotate([0, 2, 4]);
 		hybridUndoManager.endGroup();
@@ -150,7 +152,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.endGroup();
 		hybridUndoManager.undo();
 
-		const annotations = annotationManager!.getAnnotations();
+		const annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 	});
@@ -162,7 +164,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.endGroup();
 		hybridUndoManager.undo();
 
-		let annotations = annotationManager!.getAnnotations();
+		let annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 
@@ -172,7 +174,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.endGroup();
 		hybridUndoManager.undo();
 
-		annotations = annotationManager!.getAnnotations();
+		annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[3]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
 	});
@@ -183,7 +185,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.endGroup();
 		hybridUndoManager.undo();
 
-		const annotations = annotationManager!.getAnnotations();
+		const annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[2]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
@@ -198,7 +200,7 @@ describe("HybridUndoManager", () => {
 		annotationManager!.annotate([2, 6]);
 		hybridUndoManager.endGroup();
 
-		let annotations = annotationManager!.getAnnotations();
+		let annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label2!.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
@@ -206,7 +208,7 @@ describe("HybridUndoManager", () => {
 
 		hybridUndoManager.undo();
 
-		annotations = annotationManager!.getAnnotations();
+		annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
@@ -214,7 +216,7 @@ describe("HybridUndoManager", () => {
 
 		hybridUndoManager.undo();
 
-		annotations = annotationManager!.getAnnotations();
+		annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[2]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
@@ -227,7 +229,7 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.undo();
 		hybridUndoManager.redo();
 
-		const annotations = annotationManager!.getAnnotations();
+		const annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 		expect(annotations[4]).toBe(label1!.annotationClass);
@@ -244,14 +246,14 @@ describe("HybridUndoManager", () => {
 		hybridUndoManager.undo();
 		hybridUndoManager.undo();
 
-		let annotations = annotationManager!.getAnnotations();
+		let annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[2]).toBe(NEUTRAL_LABEL.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
 
 		hybridUndoManager.redo();
 
-		annotations = annotationManager!.getAnnotations();
+		annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label1!.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);
@@ -259,7 +261,7 @@ describe("HybridUndoManager", () => {
 
 		hybridUndoManager.redo();
 
-		annotations = annotationManager!.getAnnotations();
+		annotations = annotationManager!.getAnnotationDataLUT();
 		expect(annotations[0]).toBe(label1!.annotationClass);
 		expect(annotations[2]).toBe(label2!.annotationClass);
 		expect(annotations[4]).toBe(NEUTRAL_LABEL.annotationClass);

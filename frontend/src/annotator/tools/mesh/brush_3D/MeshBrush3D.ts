@@ -2,22 +2,32 @@ import { Matrix4, Raycaster, Vector3, type Mesh as ThreeMesh } from "three";
 import { CONTAINED, INTERSECTED, NOT_INTERSECTED } from "three-mesh-bvh";
 import { type AnnotationManager } from "~annotator/annotation/AnnotationManager";
 import { type UndoManager } from "~annotator/annotation/undo/UndoManager";
-import { getHeightAt } from "~annotator/scene/Camera";
 import { type Scene } from "~annotator/scene/Scene";
 import { type Mesh } from "~annotator/scene/model/Mesh";
 import { Tool } from "~annotator/tools/Tool";
-import { Sphere } from "../../common/elements/sphere/Sphere";
+import type { SelectionBuffer } from "~annotator/tools/common/utils/SelectionBuffer";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
+import {
+	createDefaultSphereScaleSetting,
+	createDefaultSphereSettings,
+	Sphere,
+} from "../../common/elements/sphere/Sphere";
 import { type ListenerBundle } from "../../common/listener/Listener";
 import { MouseButtons } from "../../common/listener/PointerListenerBundle";
 import { PointerUndoHandler } from "../../common/undo/PointerUndoHandler";
 import { MeshBrush3DButton } from "./MeshBrush3DButton";
 import { MeshBrush3DQuickSettingsView } from "./MeshBrush3DQuickSettingsView";
-
-export interface Parameters {
-	size: number;
-}
+import { MeshBrush3DSettingsView } from "./MeshBrush3DSettingsView";
 
 const NAME = "MESH_BRUSH_3D";
+
+export const MESH_BRUSH_3D_SETTINGS = {
+	scale: createDefaultSphereScaleSetting(),
+	sphere: createDefaultSphereSettings(),
+};
+
+const settingsRegistry = new LocalStorageSettingsRegistry(NAME + "-tj9fV");
+settingsRegistry.registerMultiple(MESH_BRUSH_3D_SETTINGS);
 
 /**
  * A brush tool to select meshes
@@ -25,13 +35,8 @@ const NAME = "MESH_BRUSH_3D";
  */
 
 export class MeshBrush3D extends Tool<Mesh> {
-	public readonly parameters: Parameters = {
-		size: Sphere.DEFAULT_SCALE,
-	};
-
 	// initialized in this.onLoad()
 	private brush!: Sphere;
-	private initialBrushFactor!: number;
 
 	// initialized in this.onUpdate()
 	private mesh!: ThreeMesh;
@@ -41,9 +46,10 @@ export class MeshBrush3D extends Tool<Mesh> {
 	constructor(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<Mesh>
+		scene: Scene<Mesh>,
+		selectionBuffer: SelectionBuffer
 	) {
-		super(NAME, annotationManager, undoManager, scene);
+		super(NAME, annotationManager, undoManager, scene, selectionBuffer);
 	}
 
 	protected override getOnSelectedListenerBundles(): ListenerBundle[] {
@@ -51,15 +57,11 @@ export class MeshBrush3D extends Tool<Mesh> {
 	}
 
 	protected override onLoad(): void {
-		this.brush = new Sphere();
-		this.initialBrushFactor = this.calculateBrushFactor();
-	}
-
-	private calculateBrushFactor(): number {
-		const distance = this.scene
-			.getCameraControls()
-			.getPerspectiveDistance();
-		return getHeightAt(this.scene.camera, distance);
+		this.brush = new Sphere(
+			MESH_BRUSH_3D_SETTINGS.scale,
+			Sphere.calculateSceneHeightScaleFactor(this.scene),
+			MESH_BRUSH_3D_SETTINGS.sphere
+		);
 	}
 
 	protected override onSelected(): void {
@@ -84,8 +86,12 @@ export class MeshBrush3D extends Tool<Mesh> {
 		this.scene.removeSceneSubject(this.brush);
 	}
 
-	protected override onDispose(): void {
-		this.brush.dispose();
+	protected override onDestroy(): void {
+		this.brush.destroy();
+	}
+
+	protected override onCameraChange(): void {
+		// nothing to do
 	}
 
 	/**
@@ -93,8 +99,6 @@ export class MeshBrush3D extends Tool<Mesh> {
 	 *
 	 */
 	private updateBrush() {
-		this.brush.setScale(this.parameters.size, this.initialBrushFactor);
-
 		if (!this.pointer.hasMoved) {
 			return;
 		}
@@ -117,6 +121,10 @@ export class MeshBrush3D extends Tool<Mesh> {
 	 * Annotates the intersections found by the bvh intersections
 	 */
 	private annotate() {
+		if (!this.brush.isVisible()) {
+			return;
+		}
+
 		const inverseMatrix = new Matrix4()
 			.copy(this.mesh.matrixWorld)
 			.invert();
@@ -172,5 +180,9 @@ export class MeshBrush3D extends Tool<Mesh> {
 
 	public getQuickSettingsComponent() {
 		return MeshBrush3DQuickSettingsView;
+	}
+
+	public override getSettingsComponent() {
+		return MeshBrush3DSettingsView;
 	}
 }

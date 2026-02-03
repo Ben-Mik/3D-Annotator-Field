@@ -1,6 +1,7 @@
 import { type Result } from "neverthrow";
 import { type BufferGeometry } from "three";
-import { type Disposable, type Observer } from "~entity/Types";
+import { type Destroyable } from "~entity/Types";
+import type { Observer } from "~events/Events";
 import { type ExcludeMethods } from "~util/TypeScript";
 
 /**
@@ -37,7 +38,9 @@ export interface Loader<R, F extends File | File[] = File> {
 
 export type ModelLoader = Loader<BufferGeometry>;
 
-export interface ModelLoaderWorker extends Loader<BufferGeometry>, Disposable {}
+export interface ModelLoaderWorker
+	extends Loader<BufferGeometry>,
+		Destroyable {}
 
 /**
  * The message a loader worker receives in order to start loading the file.

@@ -276,7 +276,7 @@ export function defaultApiValidationErrorHandler<T>(
 }
 
 export function defaultBlobErrorHandler(
-	blob: Blob,
+	_blob: Blob,
 	error: AxiosResponseError
 ): never {
 	throw getError("Unexpected blob error", error);
@@ -299,7 +299,7 @@ export function emptyErrorHandler(): ErrorHandler<Promise<never>> {
 		.onAxiosResponseError((error) => Promise.reject(error))
 		.onAPIResponseError((_, error) => Promise.reject(error))
 		.onAPIValidationError((_, error) => Promise.reject(error))
-		.onBlobError((blob, error) => Promise.reject(error));
+		.onBlobError((_blob, error) => Promise.reject(error));
 }
 
 export async function convertBlobData<T>(error: unknown): Promise<T> {
@@ -313,7 +313,7 @@ export async function convertBlobData<T>(error: unknown): Promise<T> {
 		try {
 			object = JSON.parse(text);
 			error.response.data = object;
-		} catch (jsonError) {
+		} catch {
 			error.response.data = text;
 		}
 	}

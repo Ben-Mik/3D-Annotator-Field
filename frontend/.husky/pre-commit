@@ -1,4 +1,9 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-npm run pre-commit
+if command -v fnm 2>&1 >/dev/null
+then
+	eval "$(fnm env --use-on-cd --version-file-strategy=recursive --shell bash)"
+fi
+
+pnpm run pre-commit

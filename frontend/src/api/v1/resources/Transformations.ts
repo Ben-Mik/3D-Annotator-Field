@@ -1,4 +1,5 @@
-import { Color, Label } from "~entity/Annotation";
+import { MutableLabel, type Label } from "~entity/Annotation";
+import { Color } from "~entity/Color";
 import {
 	ModelType,
 	type FileInformation,
@@ -6,6 +7,7 @@ import {
 } from "~entity/ModelInformation";
 import { type FullProject, type Project } from "~entity/Project";
 import { type FullUser, type User } from "~entity/User";
+import { assertUnreachable } from "~util/TypeScript";
 import { PREFIX } from "../APIv1";
 import {
 	type FileResource,
@@ -105,15 +107,21 @@ export function transformModelDataResource(
 	};
 }
 
-function transformModelType(modelType: string): ModelType {
+function transformModelType(str: string): ModelType {
+	const modelType: ModelType = str as ModelType;
 	switch (modelType) {
 		case ModelType.MESH:
 			return ModelType.MESH;
+		case ModelType.TEXTURE_MESH:
+			return ModelType.TEXTURE_MESH;
 		case ModelType.POINT_CLOUD:
 			return ModelType.POINT_CLOUD;
 		default:
-			throw new Error(
-				`${PREFIX}Transformation failed: Could not convert ${modelType} into a ModelType`
+			assertUnreachable(
+				modelType,
+				new Error(
+					`${PREFIX}Transformation failed: Could not convert ${str} into a ModelType`
+				)
 			);
 	}
 }
@@ -125,7 +133,7 @@ function transformModelType(modelType: string): ModelType {
 // LabelResource =>  Label
 
 export function transformLabelResource(label: LabelResource): Label {
-	return new Label(
+	return new MutableLabel(
 		label.label_id,
 		label.annotationClass,
 		label.name,

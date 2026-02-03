@@ -3,7 +3,7 @@ import {
 	fileExtension,
 	hasFileExtension,
 	humanReadableDataSize,
-} from "../FileUtils";
+} from "../fileSystem/FileUtils";
 
 describe("FileUtils", () => {
 	test("fileExtension()", () => {

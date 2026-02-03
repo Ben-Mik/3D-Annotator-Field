@@ -1,7 +1,8 @@
 import { type Mesh } from "~annotator/scene/model/Mesh";
 import { type Tool } from "../Tool";
-import { ToolManager } from "../ToolManger";
+import { ToolManager } from "../ToolManager";
 import { MeshBrush3D } from "./brush_3D/MeshBrush3D";
+import { MeshFill } from "./fill/MeshFill";
 import { MeshLasso } from "./lasso/MeshLasso";
 import { MeshPolygon } from "./polygon/MeshPolygon";
 
@@ -16,16 +17,29 @@ export class MeshToolManager extends ToolManager<Mesh> {
 	 */
 	protected createTools(): Tool<Mesh>[] {
 		return [
-			new MeshLasso(this.annotationManager, this.undoManager, this.scene),
-			new MeshPolygon(
-				this.annotationManager,
-				this.undoManager,
-				this.scene
-			),
 			new MeshBrush3D(
 				this.annotationManager,
 				this.undoManager,
-				this.scene
+				this.scene,
+				this.sharedSelectionBuffer
+			),
+			new MeshLasso(
+				this.annotationManager,
+				this.undoManager,
+				this.scene,
+				this.sharedSelectionBuffer
+			),
+			new MeshPolygon(
+				this.annotationManager,
+				this.undoManager,
+				this.scene,
+				this.sharedSelectionBuffer
+			),
+			new MeshFill(
+				this.annotationManager,
+				this.undoManager,
+				this.scene,
+				this.sharedSelectionBuffer
 			),
 		];
 	}

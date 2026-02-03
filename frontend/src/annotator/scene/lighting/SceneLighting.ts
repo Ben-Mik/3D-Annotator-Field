@@ -26,7 +26,7 @@ export abstract class SceneLighting implements SceneSubject {
 	/**
 	 * Disposes all lights.
 	 */
-	public dispose(): void {
+	public destroy(): void {
 		for (const light of this.getLights()) {
 			light.dispose();
 		}
@@ -39,8 +39,4 @@ export abstract class SceneLighting implements SceneSubject {
 	public update(): void {
 		// nothing to update
 	}
-
-	public abstract setLightIntensity(intensity: number): void;
-
-	public abstract getLightIntensity(): number;
 }

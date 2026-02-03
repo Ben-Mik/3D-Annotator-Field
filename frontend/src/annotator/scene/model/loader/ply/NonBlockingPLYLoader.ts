@@ -1,7 +1,10 @@
 import { err, ok, type Result } from "neverthrow";
 import { type BufferGeometry } from "three";
-import { type Observer } from "~entity/Types";
-import { hasFileExtension, humanReadableDataSize } from "~util/FileUtils";
+import { type Observer } from "~events/Events";
+import {
+	hasFileExtension,
+	humanReadableDataSize,
+} from "~util/fileSystem/FileUtils";
 import { createGeometryFromClone } from "~util/Three";
 import { progressInPercent } from "~util/Util";
 import {
@@ -44,7 +47,7 @@ export class NonBlockingPLYLoader implements ModelLoaderWorker {
 		}
 
 		if (this.worker === null) {
-			throw new Error("PLYLoaderWorker: Worker has been disposed.");
+			throw new Error("PLYLoaderWorker: Worker has been terminated.");
 		}
 
 		if (!hasFileExtension(modelFile, PLY_FILE_EXTENSIONS)) {
@@ -108,7 +111,7 @@ export class NonBlockingPLYLoader implements ModelLoaderWorker {
 		});
 	}
 
-	public dispose() {
+	public destroy() {
 		if (this.worker === null) return;
 		this.worker.terminate();
 		this.worker = null;

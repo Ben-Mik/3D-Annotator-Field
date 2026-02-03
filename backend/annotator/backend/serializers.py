@@ -12,7 +12,7 @@ from . import constants
 
 
 # Readonly serializer for the User model. It only returns a reduced representation.
-class ReducedUserSerializer(serializers.Serializer[Union[User, QuerySet[User]]]):
+class ReducedUserSerializer(serializers.Serializer[User]):
     user_id = serializers.IntegerField(read_only=True, source="pk")
     username = serializers.CharField(read_only=True)
 
@@ -138,9 +138,7 @@ class AnnotationFileUploadSerializer(FileUploadSerializer):
 
 # Serializer for the Label model. Can create, update and return a representation.
 # Updates are only supported with partial=True argument and only for the name and color.
-class LabelSerializer(
-    serializers.Serializer[Union[models.Label, QuerySet[models.Label]]]
-):
+class LabelSerializer(serializers.Serializer[models.Label]):
     label_id = serializers.IntegerField(read_only=True, source="pk")
     annotationClass = serializers.IntegerField(
         max_value=constants.INTEGER_MAX, min_value=constants.INTEGER_MIN
@@ -189,9 +187,7 @@ class LabelSerializer(
 # Serializer for the ModelData model. Can create, update and return a representation.
 # For creation, the owner argument has to be included when calling .save().
 # Updates are only supported with partial=True argument and only for the name.
-class ModelDataSerializer(
-    serializers.Serializer[Union[models.ModelData, QuerySet[models.ModelData]]]
-):
+class ModelDataSerializer(serializers.Serializer[models.ModelData]):
     modelData_id = serializers.IntegerField(read_only=True, source="pk")
     owner = ReducedUserSerializer(read_only=True)
     name = serializers.CharField(max_length=constants.MODELDATA_NAME_MAX_LENGTH)
@@ -215,7 +211,7 @@ class ModelDataSerializer(
 
     def update(
         self,
-        instance: Union[models.ModelData, QuerySet[models.ModelData]],
+        instance: models.ModelData,
         validated_data: dict[str, Any],
     ) -> models.ModelData:
         if not isinstance(instance, models.ModelData):

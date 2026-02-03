@@ -3,7 +3,8 @@ import type { Model } from "~annotator/scene/model/Model";
 import type { Tool } from "~annotator/tools/Tool";
 import { useAnnotator } from "~ui/annotator/contexts/AnnotatorContext";
 import { useTools } from "~ui/annotator/hooks/Tools";
-import { RenderButton } from "./RenderButton";
+import { ExportMenuModalButton } from "./ExportMenu";
+import { SettingsModalButton } from "./GlobalSettings";
 import { SaveButton } from "./SaveButton";
 
 export function LeftSidebar() {
@@ -39,7 +40,10 @@ export function LeftSidebar() {
 					<SaveButton></SaveButton>
 				</div>
 				<div>
-					<RenderButton></RenderButton>
+					<ExportMenuModalButton></ExportMenuModalButton>
+				</div>
+				<div>
+					<SettingsModalButton></SettingsModalButton>
 				</div>
 			</div>
 		</div>

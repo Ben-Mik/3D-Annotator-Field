@@ -26,8 +26,6 @@ onmessage = async function ({ data }: MessageEvent<LoaderWorkerReceive>) {
 		// compute normals (used by phong materials)
 		geometry.computeVertexNormals();
 
-		console.log("ply geometry: ", geometry);
-
 		postMessage<LoaderWorkerSend>(
 			{
 				geometryClone: geometry,

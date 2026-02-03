@@ -16,20 +16,20 @@ export function useAuth() {
 
 export function AuthProvider({ children }: PropsWithChildren) {
 	const api = useAPI();
-	const [currentUser, setCurrentUser] = useState<FullUser | null>(null);
-	const [loading, setLoading] = useState(true);
+	const [currentUser, setCurrentUser] = useState<FullUser | null>(
+		api.auth.getCurrentUser()
+	);
 
 	useEffect(() => {
-		const unsubscribe = api.auth.onAuthStateChanged((user) => {
+		const unsubscribe = api.auth.on("authStateChange", (user) => {
 			setCurrentUser(user);
-			setLoading(false);
 		});
 		return unsubscribe;
 	}, [api]);
 
 	return (
 		<AUTH_CONTEXT.Provider value={currentUser}>
-			{!loading && children}
+			{children}
 		</AUTH_CONTEXT.Provider>
 	);
 }

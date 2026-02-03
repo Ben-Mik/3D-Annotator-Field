@@ -28,7 +28,7 @@ export function DropDown<T>({
 	let selected = defaultChoiceIndex;
 	return (
 		<div className="mx-1 my-auto flex gap-2">
-			<div className="dropdown-hover dropdown">
+			<div className="dropdown dropdown-hover">
 				<label tabIndex={0} className="btn btn-primary m-1">
 					{label}
 				</label>

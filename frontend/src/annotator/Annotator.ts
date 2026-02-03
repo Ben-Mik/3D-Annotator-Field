@@ -1,17 +1,30 @@
 import { err, ok, type Result } from "neverthrow";
-import { type Label } from "~entity/Annotation";
-import { type ModelInformation } from "~entity/ModelInformation";
-import { type Disposable, type Observer } from "~entity/Types";
-import { hasFileExtension } from "~util/FileUtils";
-import { type AnnotationFileParserError } from "./anno3d/AnnotationFileParser";
-import { GenericAnnotationFileParser } from "./anno3d/GenericAnnotationFileParser";
-import { AnnotationFileSerializerUTF8v1 } from "./anno3d/UTF8v1/AnnotationFileSerializerUTF8v1";
+import type { FC } from "react";
+import type * as Anno3Dv2 from "~anno3d/v2";
+import { type CacheRuntime, type ModelUserCacheScope } from "~cache/index";
+import { type AnnotationsLUT, type Label } from "~entity/Annotation";
+import {
+	type ModelInformation,
+	type ModelType,
+} from "~entity/ModelInformation";
+import { type Destroyable } from "~entity/Types";
+import type { User } from "~entity/User";
+import type { Observer, Unsubscribe } from "~events/Events";
+import { hasFileExtension } from "~util/fileSystem/FileUtils";
 import { AnnotationManager } from "./annotation/AnnotationManager";
 import { LabelManager } from "./annotation/LabelManager";
 import { HybridUndoManager } from "./annotation/undo/HybridUndoManager";
 import { type UndoManager } from "./annotation/undo/UndoManager";
-import { type FileManager } from "./files/FileManager";
-import { OriginPrivateFileSystemManager } from "./files/OriginPrivateFileSystemManager";
+import {
+	CacheBackedAnnotationFileManager,
+	type AnnotationFileManager,
+} from "./files/AnnotationFileManager";
+import {
+	CacheBackedModelFileManager,
+	type ModelFileManager,
+} from "./files/ModelFileManager";
+import type { MeshAnnotator } from "./MeshAnnotator";
+import type { PointCloudAnnotator } from "./PointCloudAnnotator";
 import {
 	MAX_UTF8_FILE_LENGTH,
 	PLY_BINARY_SIZE_WARNING,
@@ -22,11 +35,22 @@ import { PLY_FILE_EXTENSIONS } from "./scene/model/loader/ply/NonBlockingPLYLoad
 import { type Model } from "./scene/model/Model";
 import { type Scene } from "./scene/Scene";
 import { type SceneManager } from "./scene/SceneManager";
-import { type AnnotationVisualizer } from "./scene/visualizer/AnnotationVisualizer";
+import {
+	VISUALIZER_SETTINGS,
+	type AnnotationVisualizer,
+} from "./scene/visualizer/AnnotationVisualizer";
+import type { TextureAnnotator } from "./TextureAnnotator";
 import "./three/three-mesh-bvh.config";
-import { type ToolManager } from "./tools/ToolManger";
+import { type ToolManager } from "./tools/ToolManager";
 
-export type SetupError = AnnotationFileParserError | LoaderError;
+export type AnnotationFileError = {
+	code: "LENGTH_MISMATCH";
+};
+
+export type SetupError =
+	| Anno3Dv2.ParserError
+	| LoaderError
+	| AnnotationFileError;
 
 /**
  * The stages of an setup process \
@@ -83,9 +107,14 @@ export class AnnotatorSetupAbortController {
 /**
  * The Annotator, the anchor point for all manager classes
  */
-export abstract class Annotator<T extends Model> implements Disposable {
+export abstract class Annotator<T extends Model> implements Destroyable {
+	public readonly modelType: ModelType;
+	public readonly cacheScope: ModelUserCacheScope;
+
 	public readonly labelManager: LabelManager;
-	public readonly fileManager: FileManager;
+	public readonly modelFileManager: ModelFileManager;
+	public readonly annotationFileManager: AnnotationFileManager;
+
 	/**
 	 * Exists only after {@link setup} was called and has finished.
 	 */
@@ -98,9 +127,12 @@ export abstract class Annotator<T extends Model> implements Disposable {
 
 	public toolManager!: ToolManager<T>;
 
-	private readonly scene: Scene<T>;
-	private annotationVisualizer!: AnnotationVisualizer;
-	private annotationManager!: AnnotationManager;
+	protected annotationVisualizer!: AnnotationVisualizer;
+	protected annotationManager!: AnnotationManager;
+
+	protected readonly scene: Scene<T>;
+	private readonly opacitySetting = VISUALIZER_SETTINGS.opacity;
+	private readonly unsubscribeOpacitySetting: Unsubscribe;
 
 	private readonly modelInformation: ModelInformation;
 
@@ -116,46 +148,55 @@ export abstract class Annotator<T extends Model> implements Disposable {
 	 * @param rootId the id of the root directory
 	 */
 	constructor(
+		runtime: CacheRuntime,
+		user: User,
 		sceneParent: HTMLDivElement,
 		modelInformation: ModelInformation,
-		labels: Label[],
-		rootId: number
+		labels: Label[]
 	) {
+		this.modelType = modelInformation.modelType;
+		this.cacheScope = {
+			modelId: String(modelInformation.id),
+			projectId: String(modelInformation.projectId),
+			userId: String(user.id),
+		};
+
 		this.modelInformation = modelInformation;
 
 		this.labelManager = new LabelManager(labels);
 
-		this.fileManager = this.createFileManager(
-			rootId,
-			modelInformation,
-			this.labelManager
+		this.modelFileManager = new CacheBackedModelFileManager(
+			runtime,
+			this.cacheScope
+		);
+
+		this.annotationFileManager = new CacheBackedAnnotationFileManager(
+			runtime,
+			this.cacheScope,
+			labels,
+			modelInformation.modelType
 		);
 
 		this.scene = this.createScene(sceneParent);
+
+		this.unsubscribeOpacitySetting = this.opacitySetting.on(
+			"change",
+			() => {
+				this.notifyVisualizerChange(true);
+			}
+		);
 	}
 
-	/**
-	 * Creates a new file Manager
-	 *
-	 * @param rootId the id of the root directory
-	 * @param modelId the model id
-	 * @param labelManager a label manager
-	 * @returns
-	 */
-	private createFileManager(
-		rootId: number,
-		modelId: ModelInformation,
-		labelManager: LabelManager
-	): FileManager {
-		const labels = labelManager.getLabels();
-		const parser = new GenericAnnotationFileParser(labels);
-		const serializer = new AnnotationFileSerializerUTF8v1(labels);
-		return new OriginPrivateFileSystemManager(
-			rootId,
-			modelId,
-			parser,
-			serializer
-		);
+	public isPointCloudAnnotator(): this is PointCloudAnnotator {
+		return false;
+	}
+
+	public isMeshAnnotator(): this is MeshAnnotator {
+		return false;
+	}
+
+	public isTextureAnnotator(): this is TextureAnnotator {
+		return false;
 	}
 
 	/**
@@ -189,7 +230,7 @@ export abstract class Annotator<T extends Model> implements Disposable {
 		// STAGE ONE (read model files)
 		this.setProgress(SetupStage.READ_MODEL_FILES, onProgress);
 
-		const files = await this.fileManager.readModelFiles();
+		const files = await this.modelFileManager.readModelFiles();
 		this.setFileWarnings(SetupStage.READ_MODEL_FILES, onProgress, files);
 
 		if (this.breakSetup()) return ok(false);
@@ -214,43 +255,54 @@ export abstract class Annotator<T extends Model> implements Disposable {
 
 		// synchronously initialize instances
 
-		this.annotationVisualizer = this.createAnnotationVisualizer(this.scene);
+		this.annotationVisualizer = this.createAnnotationVisualizer(
+			this.scene,
+			this.labelManager
+		);
 
 		this.annotationManager = this.createAnnotationManager(
 			this.scene.getModel(),
 			this.labelManager
 		);
-		this.annotationManager.addAnnotationObserver(
-			this.annotationVisualizer.visualize.bind(this.annotationVisualizer)
+		this.annotationManager.on(
+			"afterAnnotation",
+			({ data, annotations }) => {
+				this.annotationVisualizer.visualize(data, annotations);
+			}
 		);
 
 		this.undoManager = this.createUndoManager(this.annotationManager);
 
+		this.onInitializedModel(this.scene);
+
 		// STAGE THREE (check annotation file)
 		this.setProgress(SetupStage.CHECK_ANNOTATION_FILE, onProgress);
 
-		if (await this.fileManager.hasAnnotationFile()) {
+		if (await this.annotationFileManager.hasAnnotationFile()) {
 			if (this.breakSetup()) return ok(false);
 
 			// STAGE FOUR - OPTIONAL (read annotation data)
 			this.setProgress(SetupStage.READ_ANNOTATION_DATA, onProgress);
 
-			const result = await this.fileManager.readAnnotationData();
+			const result =
+				await this.annotationFileManager.readAnnotationData();
 			if (result.isErr()) {
 				return err(result.error);
+			} else if (
+				result.value.annotations.length !==
+				this.scene.getModel().getIndexCount()
+			) {
+				return err({ code: "LENGTH_MISMATCH" });
 			}
 
-			const data = result.value;
+			const data = result.value.annotations;
 
 			if (this.breakSetup()) return ok(false);
 
-			// TODO Make asynchronous and non blocking, maybe add animation in visualizer
-			// TODO STAGE FIVE (load annotations)
-			// this.setProgress(SetupStage.LoadAnnotations, onProgress);
-
 			this.annotationManager.loadAnnotations(data);
+			this.annotationVisualizer.visualizeAll(data, true);
 
-			// TODO if (this.breakSetup()) return;
+			if (this.breakSetup()) return ok(false);
 		}
 
 		this.sceneManager = this.scene.createSceneManager();
@@ -269,6 +321,7 @@ export abstract class Annotator<T extends Model> implements Disposable {
 		return ok(true);
 	}
 
+	protected abstract onInitializedModel(scene: Scene<T>): void;
 	/**
 	 * Sets a the setup stage.
 	 *
@@ -323,7 +376,7 @@ export abstract class Annotator<T extends Model> implements Disposable {
 			return false;
 		}
 
-		this.disposeAll();
+		this.destroyAll();
 		this.setProgress(SetupStage.ABORTED, onProgress);
 		this.setupActive = false;
 		return true;
@@ -336,7 +389,8 @@ export abstract class Annotator<T extends Model> implements Disposable {
 	 * @return the annotation visualizer
 	 */
 	protected abstract createAnnotationVisualizer(
-		scene: Scene<T>
+		scene: Scene<T>,
+		labelManager: LabelManager
 	): AnnotationVisualizer;
 
 	/**
@@ -346,32 +400,24 @@ export abstract class Annotator<T extends Model> implements Disposable {
 	 * @param labelManager a label manager
 	 * @returns the annotation manager
 	 */
-	private createAnnotationManager(
+	protected createAnnotationManager(
 		model: T,
 		labelManager: LabelManager
 	): AnnotationManager {
-		const annotationManager = new AnnotationManager(
-			model.getIndexCount(),
-			labelManager
-		);
-		return annotationManager;
+		return new AnnotationManager(model.getIndexCount(), labelManager);
 	}
 
 	private createUndoManager(
 		annotationManager: AnnotationManager
 	): UndoManager {
-		return new HybridUndoManager(annotationManager);
+		return new HybridUndoManager(annotationManager, this.labelManager);
 	}
 
-	public notifyVisualizerChange(): void {
+	public notifyVisualizerChange(overlayOnly = false): void {
 		this.annotationVisualizer.visualizeAll(
-			this.annotationManager.getLabeledAnnotations()
+			this.annotationManager.getAnnotationDataLUT(),
+			overlayOnly
 		);
-	}
-
-	public changeVisualizerOpacity(opacity: number): void {
-		this.annotationVisualizer.setOpacity(opacity);
-		this.notifyVisualizerChange();
 	}
 
 	/**
@@ -388,45 +434,62 @@ export abstract class Annotator<T extends Model> implements Disposable {
 		this.scene.stopRenderLoop();
 	}
 
-	public dispose() {
+	public destroy() {
 		if (this.setupActive) {
 			this.abortController!.abort();
 		} else {
-			this.disposeAll();
+			this.destroyAll();
 		}
 	}
 
 	/**
-	 * Disposes all managers
+	 * Calls `destroy` on all managers
 	 */
-	private disposeAll(): void {
-		console.log("dispose all");
+	private destroyAll(): void {
+		console.log("destroy all");
 
-		this.scene.dispose();
+		this.annotationFileManager.destroy();
+
+		this.scene.destroy();
 
 		if (this.annotationVisualizer) {
-			this.annotationVisualizer.dispose();
+			this.annotationVisualizer.destroy();
 		}
 
 		if (this.annotationManager) {
-			this.annotationManager.dispose();
+			this.annotationManager.destroy();
 		}
 
 		if (this.undoManager) {
-			this.undoManager.dispose();
+			this.undoManager.destroy();
 		}
 
 		if (this.toolManager) {
-			this.toolManager.dispose();
+			this.toolManager.destroy();
 		}
+
+		this.unsubscribeOpacitySetting();
 	}
 
 	/**
 	 * Writes and saves all current annotation data
 	 */
 	public async save() {
-		const data = this.annotationManager.getAnnotations();
-		await this.fileManager.writeAnnotationData(data);
+		const data = this.annotationManager.getAnnotationDataLUT();
+		await this.annotationFileManager.writeAnnotationData(data);
+	}
+
+	public getAnnotationsLUT(): AnnotationsLUT {
+		const data = this.annotationManager.getAnnotationDataLUT();
+		return new Uint8Array(data);
+	}
+
+	public getAnnotationsLUTUnsafe(): AnnotationsLUT {
+		return this.annotationManager.getAnnotationDataLUT();
+	}
+
+	public getSettingsComponent(): FC {
+		return () => null;
 	}
 
 	/**

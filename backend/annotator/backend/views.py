@@ -1,8 +1,9 @@
-from typing import Optional, Type, List, Any, cast, Protocol
+from typing import Optional, Type, List, Any, cast, Protocol, TYPE_CHECKING
 
 from django.contrib.auth.models import User
 from django.db.models import QuerySet
 from django.http import FileResponse
+from django.utils import timezone
 
 from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.response import Response
@@ -13,12 +14,10 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework import exceptions
-from knox.models import User as KnoxUser
 
+from knox.settings import knox_settings
 from knox.views import LoginView as KnoxLoginView
 from knox.views import LogoutView as KnoxLogoutView
-
-from django.utils import timezone
 
 from . import models
 from . import serializers
@@ -32,8 +31,23 @@ from annotator.backend.utils import (
 )
 
 from rest_framework.permissions import IsAuthenticated, BasePermission
-
 from annotator.backend.auth import BasicAuthentication, TokenAuthentication
+from rest_framework.serializers import BaseSerializer
+
+if TYPE_CHECKING:
+    ProjectViewSetBase = GenericViewSet[models.Project]
+    ModelDataViewSetBase = GenericViewSet[models.ModelData]
+    LabelViewSetBase = GenericViewSet[models.Label]
+    UserViewSetBase = GenericViewSet[User]
+    FileViewSetBase = GenericViewSet[models.ModelData]
+    RegisterViewBase = GenericAPIView[User]
+else:
+    ProjectViewSetBase = GenericViewSet
+    ModelDataViewSetBase = GenericViewSet
+    LabelViewSetBase = GenericViewSet
+    UserViewSetBase = GenericViewSet
+    FileViewSetBase = GenericViewSet
+    RegisterViewBase = GenericAPIView
 
 
 # only for typing
@@ -45,7 +59,7 @@ class _SupportsHasPermission(Protocol):
         ...  # pragma: no cover
 
 
-class ProjectViewSet(GenericViewSet):
+class ProjectViewSet(ProjectViewSetBase):
     queryset = models.Project.objects.all()
     permission_classes_by_action: dict[str, List[Type[BasePermission]]] = {
         "list": [IsAuthenticated],
@@ -100,7 +114,9 @@ class ProjectViewSet(GenericViewSet):
         user_id = self.get_parameters("user_id")
         queryset = models.Project.objects.all()
         if user_id is not None:
-            queryset = queryset.filter(users=user_id) | queryset.filter(owner=user_id)
+            queryset = queryset.filter(users=int(user_id)) | queryset.filter(
+                owner=int(user_id)
+            )
         return queryset
 
     def get_parameters(self, *kwargs: str) -> Optional[str]:
@@ -136,7 +152,7 @@ class ProjectViewSet(GenericViewSet):
             return [permission() for permission in self.permission_classes]
 
 
-class ModelDataViewSet(GenericViewSet):
+class ModelDataViewSet(ModelDataViewSetBase):
     queryset = models.ModelData.objects.all()
     serializer_class = serializers.ModelDataSerializer
     permission_classes_by_action: dict[str, List[Type[BasePermission]]] = {
@@ -154,7 +170,7 @@ class ModelDataViewSet(GenericViewSet):
         # 5 tries, before server sends an error
         for i in range(5):
             try:
-                serializer = self.serializer_class(queryset, many=True)
+                serializer = self.get_serializer(queryset, many=True)
                 return Response(serializer.data)
             except FileNotFoundError:  # pragma: no cover
                 print("file not found! retry...")
@@ -280,9 +296,8 @@ class ModelDataViewSet(GenericViewSet):
 
     def get_projects_of_user(self) -> QuerySet[models.Project]:
         projects = models.Project.objects.all()
-        return projects.filter(owner=self.request.user) | projects.filter(
-            users=self.request.user
-        )
+        user = cast(User, self.request.user)
+        return projects.filter(owner=user) | projects.filter(users=user)
 
     def get_permissions(self) -> List[_SupportsHasPermission]:
         try:
@@ -296,7 +311,7 @@ class ModelDataViewSet(GenericViewSet):
             return [permission() for permission in self.permission_classes]
 
 
-class LabelViewSet(GenericViewSet):
+class LabelViewSet(LabelViewSetBase):
     queryset = models.Label.objects.all()
     serializer_class = serializers.LabelSerializer
     permission_classes_by_action: dict[str, List[Type[BasePermission]]] = {
@@ -310,11 +325,11 @@ class LabelViewSet(GenericViewSet):
     def list(self, request: Request) -> Response:
         self.validate_parameter()
         queryset = self.get_queryset()
-        serializer = self.serializer_class(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     def create(self, request: Request) -> Response:
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         check_project_permission(self, serializer.validated_data["project"])
         serializer.save()
@@ -322,12 +337,12 @@ class LabelViewSet(GenericViewSet):
 
     def retrieve(self, request: Request, pk: Optional[str] = None) -> Response:
         instance = self.get_object()
-        serializer = self.serializer_class(instance)
+        serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
     def update(self, request: Request, pk: Optional[str] = None) -> Response:
         instance = self.get_object()
-        serializer = self.serializer_class(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -385,9 +400,8 @@ class LabelViewSet(GenericViewSet):
 
     def get_projects_of_user(self) -> QuerySet[models.Project]:
         projects = models.Project.objects.all()
-        return projects.filter(owner=self.request.user) | projects.filter(
-            users=self.request.user
-        )
+        user = cast(User, self.request.user)
+        return projects.filter(owner=user) | projects.filter(users=user)
 
     def get_permissions(self) -> List[_SupportsHasPermission]:
         try:
@@ -401,9 +415,9 @@ class LabelViewSet(GenericViewSet):
             return [permission() for permission in self.permission_classes]
 
 
-class ProjectUserViewSet(GenericViewSet):
+class ProjectUserViewSet(ProjectViewSetBase):
     queryset = models.Project.objects.all()
-    serializer_class = serializers.ProjectUserSerializer
+    serializer_class: Type[BaseSerializer[Any]] = serializers.ProjectUserSerializer
     permission_classes_by_action: dict[str, List[Type[BasePermission]]] = {
         "list": [IsAuthenticated, permissions.IsPartOfProject],
         "create": [IsAuthenticated, permissions.IsProjectOwner],
@@ -412,12 +426,12 @@ class ProjectUserViewSet(GenericViewSet):
 
     def list(self, request: Request, project_id: int) -> Response:
         project = self.get_project(request, project_id)
-        serializer = self.serializer_class(project.users.all(), many=True)
+        serializer = self.get_serializer(project.users.all(), many=True)
         return Response(serializer.data)
 
     def create(self, request: Request, project_id: int) -> Response:
         project = self.get_project(request, project_id)
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(project=project)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -449,7 +463,7 @@ class ProjectUserViewSet(GenericViewSet):
             return [permission() for permission in self.permission_classes]
 
 
-class UserViewSet(GenericViewSet):
+class UserViewSet(UserViewSetBase):
     queryset = User.objects.all()
     permission_classes = [IsAuthenticated, permissions.DetailedUserPermission]
 
@@ -463,15 +477,15 @@ class UserViewSet(GenericViewSet):
         serializer = self.get_serializer(user)
         return Response(serializer.data)
 
-    def get_serializer_class(self) -> Type[serializers.ReducedUserSerializer]:
+    def get_serializer_class(self) -> Type[BaseSerializer[User]]:
         if self.action == "list":
             return serializers.ReducedUserSerializer
         return serializers.UserSerializer
 
 
-class FileViewSet(GenericViewSet):
+class FileViewSet(FileViewSetBase):
     queryset = models.ModelData.objects.all()
-    serializer_class = serializers.FileUploadSerializer
+    serializer_class: Type[BaseSerializer[Any]] = serializers.FileUploadSerializer
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated, permissions.IsPartOfProject]
 
@@ -562,27 +576,36 @@ class FileViewSet(GenericViewSet):
 class LoginView(KnoxLoginView):
     authentication_classes = [BasicAuthentication]
 
-    # overwriting post method to delete existing tokens and return a new one
-    def post(self, request: Request, format: Optional[str] = None) -> Response:
-        now = timezone.now()
-        # cannot be of type AnonymousUser because of the permission
-        user = cast(KnoxUser, request.user)
-        token = user.auth_token_set.filter(expiry__gt=now)
-        if token.count() >= 1:
-            user.auth_token_set.all().delete()
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        limit = knox_settings.TOKEN_LIMIT_PER_USER
 
-        return super().post(request, format)
+        if isinstance(limit, int) and limit > 0:
+
+            now = timezone.now()
+
+            user = cast(User, request.user)
+
+            token_set = user.auth_token_set  # type: ignore[attr-defined]
+
+            qs = token_set.filter(expiry__gt=now).order_by("created")
+            excess = qs.count() - (limit - 1)
+
+            if excess > 0:
+                oldest_ids = list(qs.values_list("pk", flat=True)[:excess])
+                token_set.filter(pk__in=oldest_ids).delete()
+
+        return super().post(request, *args, **kwargs)
 
 
 class LogoutView(KnoxLogoutView):
     authentication_classes = [TokenAuthentication]
 
 
-class RegisterView(GenericAPIView):  # type: ignore
+class RegisterView(RegisterViewBase):
     serializer_class = serializers.UserSerializer
 
     def post(self, request: Request) -> Response:
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

@@ -6,7 +6,7 @@ import Front from "~assets/icons/perspective/front.png";
 import Left from "~assets/icons/perspective/left.png";
 import Right from "~assets/icons/perspective/right.png";
 import Top from "~assets/icons/perspective/top.png";
-import { Perspective } from "~entity/Perspective";
+import { type Perspective } from "~entity/Perspective";
 import { useAnnotator } from "~ui/annotator/contexts/AnnotatorContext";
 import { StandardContainer } from "~ui/components/StandardContainer";
 
@@ -28,7 +28,7 @@ export function CameraPerspective() {
 			styling={`select-none p-5 ${collapsed ? "pb-2" : ""}`}
 		>
 			<h1
-				className="mb-2 -mt-2 text-center text-xl hover:cursor-pointer"
+				className="-mt-2 mb-2 text-center text-xl hover:cursor-pointer"
 				onClick={() => {
 					setCollapsed((currentState) => !currentState);
 				}}
@@ -48,7 +48,7 @@ export function CameraPerspective() {
 						src={Top}
 						alt={LL.TOP()}
 						onClick={() => {
-							selectCameraPerspective(Perspective.TOP);
+							selectCameraPerspective("TOP");
 						}}
 					/>
 				</div>
@@ -60,7 +60,7 @@ export function CameraPerspective() {
 						src={Bottom}
 						alt={LL.BOTTOM()}
 						onClick={() => {
-							selectCameraPerspective(Perspective.BOTTOM);
+							selectCameraPerspective("BOTTOM");
 						}}
 					/>
 				</div>
@@ -72,7 +72,7 @@ export function CameraPerspective() {
 						src={Left}
 						alt={LL.LEFT()}
 						onClick={() => {
-							selectCameraPerspective(Perspective.LEFT);
+							selectCameraPerspective("LEFT");
 						}}
 					/>
 				</div>
@@ -84,7 +84,7 @@ export function CameraPerspective() {
 						src={Right}
 						alt={LL.RIGHT()}
 						onClick={() => {
-							selectCameraPerspective(Perspective.RIGHT);
+							selectCameraPerspective("RIGHT");
 						}}
 					/>
 				</div>
@@ -96,7 +96,7 @@ export function CameraPerspective() {
 						src={Front}
 						alt={LL.FRONT()}
 						onClick={() => {
-							selectCameraPerspective(Perspective.FRONT);
+							selectCameraPerspective("FRONT");
 						}}
 					/>
 				</div>
@@ -108,7 +108,7 @@ export function CameraPerspective() {
 						src={Back}
 						alt={LL.BACK()}
 						onClick={() => {
-							selectCameraPerspective(Perspective.BACK);
+							selectCameraPerspective("BACK");
 						}}
 					/>
 				</div>

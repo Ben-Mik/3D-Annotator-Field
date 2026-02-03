@@ -1,14 +1,19 @@
 import { type ResultAsync } from "neverthrow";
-import { type Color, type Label } from "~entity/Annotation";
+import { type Label } from "~entity/Annotation";
+import type { Color } from "~entity/Color";
 import {
 	type FileInformation,
 	type ModelInformation,
 	type ModelType,
 } from "~entity/ModelInformation";
 import { type FullProject, type Project } from "~entity/Project";
-import { type Observer, type Unsubscribe } from "~entity/Types";
+import {
+	type FileData,
+	type NameableSizableStream,
+	type SizeableStream,
+} from "~entity/Types";
 import { type FullUser, type User } from "~entity/User";
-import { type NamedStream } from "~util/streams/StreamUtils";
+import type { Observer, Subscribable } from "~events/Events";
 import {
 	type APIError,
 	type ErrorMap,
@@ -53,7 +58,11 @@ export type APIResultAbort<T> = APIResult<
 	SingularError<Errors.NETWORK | Errors.ABORTED>
 >;
 
-export interface Auth {
+export type AuthEvents = {
+	authStateChange: FullUser | null;
+};
+
+export interface Auth extends Subscribable<AuthEvents> {
 	signIn(
 		username: string,
 		password: string
@@ -90,7 +99,8 @@ export interface Auth {
 			| Errors.INVALID_EMAIL
 		>
 	>;
-	onAuthStateChanged(callback: Observer<FullUser | null>): Unsubscribe;
+
+	getCurrentUser(): FullUser | null;
 }
 
 export interface Users {
@@ -162,6 +172,7 @@ export interface Labels {
 	update(labelId: number, name: string, color: Color): APIResult<Label>;
 	delete(labelId: number): APIResult<void>;
 }
+
 export interface Files {
 	/**
 	 * Starts the download of the model file and returns readable streams of the
@@ -178,12 +189,15 @@ export interface Files {
 		modelId: number,
 		onProgress?: Observer<number>,
 		abort?: AbortController
-	): APIResult<NamedStream[], SingularError<Errors.NETWORK | Errors.ABORTED>>;
+	): APIResult<FileData[], SingularError<Errors.NETWORK | Errors.ABORTED>>;
 
 	uploadModel(
 		modelId: number,
-		fileStreams: NamedStream[],
-		onProgress?: Observer<number>
+		fileStreams: NameableSizableStream[],
+		progress?: {
+			onCompressionProgress?: Observer<number>;
+			onUploadProgress?: Observer<number>;
+		}
 	): APIResult<
 		FileInformation,
 		SingularError<
@@ -196,7 +210,7 @@ export interface Files {
 		onProgress?: Observer<number>,
 		abort?: AbortController
 	): APIResult<
-		ReadableStream<Uint8Array>,
+		FileData,
 		SingularError<
 			Errors.NETWORK | Errors.ABORTED | Errors.NO_ANNOTATION_FILE
 		>
@@ -204,8 +218,11 @@ export interface Files {
 
 	uploadAnnotationFile(
 		modelId: number,
-		fileStream: ReadableStream<Uint8Array>,
-		onProgress?: Observer<number>
+		fileStream: SizeableStream,
+		progress?: {
+			onCompressionProgress?: Observer<number>;
+			onUploadProgress?: Observer<number>;
+		}
 	): APIResult<
 		FileInformation,
 		SingularError<Errors.NETWORK | Errors.LOCKED | Errors.LARGE_FILE>

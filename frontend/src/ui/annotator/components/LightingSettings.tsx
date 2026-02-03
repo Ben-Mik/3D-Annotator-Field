@@ -1,65 +1,44 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { useState } from "react";
-import { DEFAULT_GLOBAL_LIGHT_INTENSITY } from "~annotator/scene/lighting/GlobalLighting";
-import { DEFAULT_SUN_LIGHT_INTENSITY } from "~annotator/scene/lighting/SunLighting";
+import { GLOBAL_LIGHTING_SETTINGS } from "~annotator/scene/lighting/global/GlobalLighting";
+import { SUN_LIGHTING_SETTINGS } from "~annotator/scene/lighting/sun/SunLighting";
 import { ModelType } from "~entity/ModelInformation";
-import { Perspective } from "~entity/Perspective";
+import { type Perspective } from "~entity/Perspective";
 import {
 	useAnnotator,
 	useModelInformation,
 } from "~ui/annotator/contexts/AnnotatorContext";
 import { StandardContainer } from "~ui/components/StandardContainer";
+import { useSetting } from "../hooks/Settings";
 
 const SUN_POSITION_EMPTY = "-";
 
 export function LightingSettings() {
+	const { LL } = useI18nContext();
 	const annotator = useAnnotator();
 	const modelInformation = useModelInformation();
-	const { LL } = useI18nContext();
 
 	const [collapsed, setCollapsed] = useState(true);
-	const [isSunActiveState, setIsSunActiveState] = useState(true);
-	const [isFollowingCameraState, setIsFollowingCameraState] = useState(false);
-	const [sunPositionState, setSunPositionState] = useState<string>(
-		Perspective.TOP.toString()
+
+	const [globalIntensity, setGlobalIntensity] = useSetting(
+		GLOBAL_LIGHTING_SETTINGS.intensity
 	);
 
-	function setGlobalLightIntensity(intensity: number) {
-		annotator!.sceneManager
-			.getGlobalLighting()
-			.setLightIntensity(intensity);
-	}
+	const [isSunActive, setIsSunActive] = useSetting(
+		SUN_LIGHTING_SETTINGS.isActive
+	);
+	const [sunIntensity, setSunIntensity] = useSetting(
+		SUN_LIGHTING_SETTINGS.intensity
+	);
+	const [followCamera, setFollowCamera] = useSetting(
+		SUN_LIGHTING_SETTINGS.followCamera
+	);
+	const [sunPosition] = useSetting(SUN_LIGHTING_SETTINGS.sunPosition);
 
-	function setIsSunActive(isActive: boolean) {
-		annotator!.sceneManager.getSunLighting().setIsActive(isActive);
-		setIsSunActiveState(isActive);
-	}
-
-	function setSunLightIntensity(intensity: number) {
-		annotator!.sceneManager.getSunLighting().setLightIntensity(intensity);
-	}
-
-	function setSunPosition(value: string) {
-		annotator!.sceneManager
-			.getSunLighting()
-			.setSunPosition(parseInt(value));
-		setSunPositionState(value);
-		setIsFollowingCameraState(false);
-		setFollowCamera(false);
-	}
-
-	function setSunToCameraPosition() {
-		annotator!.sceneManager.getSunLighting().setSunToCameraPosition();
-	}
-
-	function setFollowCamera(follow: boolean) {
-		annotator!.sceneManager.getSunLighting().setFollowCamera(follow);
-	}
-
-	return modelInformation?.modelType === ModelType.MESH ? (
+	return modelInformation?.modelType !== ModelType.POINT_CLOUD ? (
 		<StandardContainer styling="select-none p-5 pb-2">
 			<h1
-				className={`mb-2 -mt-2 text-center text-xl ${
+				className={`-mt-2 mb-2 text-center text-xl ${
 					annotator ? "hover:cursor-pointer" : ""
 				}`}
 				onClick={() => {
@@ -79,11 +58,11 @@ export function LightingSettings() {
 						name="global-light-intensity"
 						className="range range-primary range-xs"
 						step={0.1}
-						min={0}
-						max={2}
-						defaultValue={DEFAULT_GLOBAL_LIGHT_INTENSITY}
+						min={GLOBAL_LIGHTING_SETTINGS.intensity.min}
+						max={GLOBAL_LIGHTING_SETTINGS.intensity.max}
+						value={globalIntensity}
 						onChange={(e) => {
-							setGlobalLightIntensity(parseFloat(e.target.value));
+							setGlobalIntensity(parseFloat(e.target.value));
 						}}
 					/>
 				</label>
@@ -96,7 +75,7 @@ export function LightingSettings() {
 						type="checkbox"
 						name="Lighting-mode"
 						className="toggle toggle-primary"
-						checked={isSunActiveState}
+						checked={isSunActive}
 						onChange={(e) => {
 							setIsSunActive(e.target.checked);
 						}}
@@ -110,13 +89,13 @@ export function LightingSettings() {
 						name="sun-light-intensity"
 						className="range range-primary range-xs "
 						step={0.1}
-						min={0}
-						max={5}
-						defaultValue={DEFAULT_SUN_LIGHT_INTENSITY}
-						disabled={!isSunActiveState}
+						min={SUN_LIGHTING_SETTINGS.intensity.min}
+						max={SUN_LIGHTING_SETTINGS.intensity.max}
+						value={sunIntensity}
 						onChange={(e) => {
-							setSunLightIntensity(parseFloat(e.target.value));
+							setSunIntensity(parseFloat(e.target.value));
 						}}
+						disabled={!isSunActive}
 					/>
 				</label>
 
@@ -125,21 +104,25 @@ export function LightingSettings() {
 					<select
 						id="sunPos"
 						className="select w-full max-w-xs"
-						value={sunPositionState}
-						disabled={!isSunActiveState}
+						value={
+							sunPosition.perspective
+								? sunPosition.perspective
+								: SUN_POSITION_EMPTY
+						}
 						onChange={(e) => {
-							setSunPosition(e.target.value);
+							SUN_LIGHTING_SETTINGS.sunPosition.setToPerspective(
+								e.target.value as Perspective
+							);
 						}}
+						disabled={!isSunActive}
 					>
-						<option value={Perspective.TOP}>{LL.TOP()}</option>
-						<option value={Perspective.BOTTOM}>
-							{LL.BOTTOM()}
-						</option>
-						<option value={Perspective.RIGHT}>{LL.RIGHT()}</option>
-						<option value={Perspective.LEFT}>{LL.LEFT()}</option>
-						<option value={Perspective.FRONT}>{LL.FRONT()}</option>
-						<option value={Perspective.BACK}>{LL.BACK()}</option>
-						{sunPositionState === SUN_POSITION_EMPTY && (
+						<option value={"TOP"}>{LL.TOP()}</option>
+						<option value={"BOTTOM"}>{LL.BOTTOM()}</option>
+						<option value={"RIGHT"}>{LL.RIGHT()}</option>
+						<option value={"LEFT"}>{LL.LEFT()}</option>
+						<option value={"FRONT"}>{LL.FRONT()}</option>
+						<option value={"BACK"}>{LL.BACK()}</option>
+						{sunPosition.perspective === null && (
 							<option disabled value={SUN_POSITION_EMPTY}>
 								{SUN_POSITION_EMPTY}
 							</option>
@@ -156,13 +139,12 @@ export function LightingSettings() {
 						type="button"
 						className="btn btn-primary normal-case"
 						name="set-sun"
-						disabled={!isSunActiveState}
 						onClick={() => {
-							setSunToCameraPosition();
-							setIsFollowingCameraState(false);
-							setFollowCamera(false);
-							setSunPositionState(SUN_POSITION_EMPTY);
+							annotator!.sceneManager
+								.getSunLighting()
+								.setSunToCurrenCameraPosition();
 						}}
+						disabled={!isSunActive}
 					>
 						{LL.SET_POSITION()}
 					</button>
@@ -180,14 +162,11 @@ export function LightingSettings() {
 							type="checkbox"
 							name="follow-camera"
 							className="toggle toggle-primary"
-							checked={isFollowingCameraState}
-							disabled={!isSunActiveState}
+							checked={followCamera}
 							onChange={(e) => {
-								setSunToCameraPosition();
 								setFollowCamera(e.target.checked);
-								setIsFollowingCameraState(e.target.checked);
-								setSunPositionState(SUN_POSITION_EMPTY);
 							}}
+							disabled={!isSunActive}
 						/>
 					</div>
 				</div>

@@ -2,7 +2,8 @@ import axios from "axios";
 import { vi } from "vitest";
 import { Errors } from "~api/Errors";
 import { LabelsV1 } from "~api/v1/endpoints/Labels";
-import { Color, Label } from "~entity/Annotation";
+import { MutableLabel } from "~entity/Annotation";
+import { Color } from "~entity/Color";
 
 const mockedAxiosFunctions = vi.hoisted(() => ({
 	get: vi.fn(),
@@ -37,7 +38,7 @@ const labelResource = {
 	color: 0,
 };
 
-const label = new Label(0, 0, "label", Color.fromNumber(0));
+const label = new MutableLabel(0, 0, "label", Color.fromNumber(0));
 
 describe("labels endpoint", () => {
 	const labels: LabelsV1 = new LabelsV1(axios.create());

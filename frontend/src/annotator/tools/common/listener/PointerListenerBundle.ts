@@ -5,6 +5,7 @@ import { type ListenerBundle, type ListenerConfig } from "./Listener";
  * Represents the pointer
  */
 export interface Pointer {
+	hasChanged: boolean;
 	hasMoved: boolean;
 	position: Vector2;
 	buttons: MouseButtons;
@@ -65,12 +66,18 @@ export class PointerListenerBundle<T extends Pointer>
 		this.pointer = pointer;
 	}
 
+	public resetState(): void {
+		this.pointer.hasChanged = false;
+		this.pointer.hasMoved = false;
+	}
+
 	/**
 	 * Defines the PointerMoveListener
 	 *
 	 * @param event the pointer event
 	 */
 	private pointerMoveListener(event: PointerEvent) {
+		this.pointer.hasChanged = true;
 		this.pointer.hasMoved = true;
 		this.pointer.position.x = (event.clientX / window.innerWidth) * 2 - 1;
 		this.pointer.position.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -82,6 +89,7 @@ export class PointerListenerBundle<T extends Pointer>
 	 * @param event the pointer event
 	 */
 	private pointerDownListener(event: PointerEvent) {
+		this.pointer.hasChanged = true;
 		this.pointer.buttons = event.buttons;
 	}
 
@@ -91,6 +99,7 @@ export class PointerListenerBundle<T extends Pointer>
 	 * @param event the pointer event
 	 */
 	private pointerUpListener() {
+		this.pointer.hasChanged = true;
 		this.pointer.buttons = MouseButtons.NONE;
 	}
 }

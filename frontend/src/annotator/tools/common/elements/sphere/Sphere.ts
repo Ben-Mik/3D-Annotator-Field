@@ -6,75 +6,134 @@ import {
 	type Object3D,
 	type Vector3,
 } from "three";
+import { getHeightAt } from "~annotator/scene/Camera";
+import type { Model } from "~annotator/scene/model/Model";
+import type { Scene } from "~annotator/scene/Scene";
 import { type SceneSubject } from "~annotator/scene/SceneSubject";
+import {
+	ColorSetting,
+	NumberSetting,
+	PercentageSetting,
+} from "~settings/Settings";
+import { createSettingsManager } from "~settings/SettingsManager";
 
-const DEFAULT_OPTIONS = {
-	radius: 1,
-	widthSegments: 32,
-	heightSegments: 16,
-	color: 0xec407a,
-	transparent: true,
-	opacity: 0.5,
-	emissiveIntensity: 0.5,
-};
+export function createDefaultSphereScaleSetting() {
+	return new PercentageSetting("scale", 1, 300);
+}
+
+export type SphereSettings = ReturnType<typeof createDefaultSphereSettings>;
+
+export function createDefaultSphereSettings() {
+	return {
+		widthSegments: new NumberSetting("widthSegments", {
+			initial: 32,
+			min: 3,
+			max: 1024,
+		}),
+		heightSegments: new NumberSetting("heightSegments", {
+			initial: 16,
+			min: 2,
+			max: 1024,
+		}),
+		opacity: new PercentageSetting("opacity", 50),
+		color: new ColorSetting("color", 0xec407a),
+		emissiveColor: new ColorSetting("emissiveColor", 0xec407a),
+		emissiveIntensity: new PercentageSetting("emissiveIntensity", 50),
+	};
+}
 
 /**
  * A Sphere used by tools to visualize the brush position and size
  */
 export class Sphere implements SceneSubject {
-	public static readonly MIN_SCALE = 0;
-	public static readonly DEFAULT_SCALE = 0.01;
-	public static readonly MAX_SIZE = 3;
-
-	private readonly geometry: SphereGeometry;
-	private readonly material: MeshStandardMaterial;
+	private readonly settings;
 	private readonly mesh: ThreeMesh;
 
-	private radius: number;
-	private scale = 0;
+	private geometry: SphereGeometry;
+	private material: MeshStandardMaterial;
+	private readonly scaleFactor: number;
 
 	/**
 	 * Constructs an new instance of the Sphere
 	 *
-	 * @param options optional default options
+	 * @param settings optional default options
 	 */
-	constructor(options?: Partial<typeof DEFAULT_OPTIONS>) {
-		const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
-		this.radius = mergedOptions.radius;
+	constructor(
+		scaleSetting: PercentageSetting,
+		scaleFactor = 1,
+		settings?: SphereSettings
+	) {
+		const mergedSphereSettings = {
+			...createDefaultSphereSettings(),
+			...settings,
+		};
 
-		this.geometry = new SphereGeometry(
-			mergedOptions.radius,
-			mergedOptions.widthSegments,
-			mergedOptions.heightSegments
-		);
-		this.material = new MeshStandardMaterial({
-			color: mergedOptions.color,
-			transparent: mergedOptions.transparent,
-			opacity: mergedOptions.opacity,
-			premultipliedAlpha: true,
-			emissive: mergedOptions.color,
-			emissiveIntensity: mergedOptions.emissiveIntensity,
+		this.settings = createSettingsManager({
+			scale: scaleSetting,
+			sphere: mergedSphereSettings,
 		});
 
+		this.scaleFactor = scaleFactor;
+
+		this.settings.onChange("scale", ({ new: scale }) => {
+			this.mesh.scale.setScalar(this.getScaleScalar(scale));
+		});
+
+		this.settings.sphere.onChange(
+			["widthSegments", "heightSegments"],
+			() => {
+				this.resetGeometry();
+			}
+		);
+
+		this.settings.sphere.onChange(
+			["color", "opacity", "emissiveColor", "emissiveIntensity"],
+			() => {
+				this.resetMaterial();
+			}
+		);
+
+		this.geometry = this.createGeometry();
+		this.material = this.createMaterial();
+
 		this.mesh = new ThreeMesh(this.geometry, this.material);
+		this.mesh.scale.setScalar(this.getScaleScalar(this.settings.scale));
 		this.setInvisible();
 	}
 
-	/**
-	 * Sets the size of the sphere
-	 *
-	 * @param size the size
-	 */
-	public setScale(size: number, factor: number) {
-		if (size < Sphere.MIN_SCALE) {
-			this.scale = Sphere.MIN_SCALE * factor;
-		} else if (size > Sphere.MAX_SIZE) {
-			this.scale = Sphere.MAX_SIZE * factor;
-		} else {
-			this.scale = size * factor;
-		}
+	private createGeometry() {
+		return new SphereGeometry(
+			1,
+			this.settings.sphere.widthSegments,
+			this.settings.sphere.heightSegments
+		);
+	}
 
-		this.mesh.scale.setScalar(this.scale);
+	private createMaterial() {
+		return new MeshStandardMaterial({
+			transparent: true,
+			premultipliedAlpha: true,
+			color: this.settings.sphere.color,
+			opacity: PercentageSetting.toNumber(this.settings.sphere.opacity),
+			emissive: this.settings.sphere.emissiveColor,
+			emissiveIntensity: PercentageSetting.toNumber(
+				this.settings.sphere.emissiveIntensity
+			),
+		});
+	}
+
+	private resetGeometry() {
+		this.geometry = this.createGeometry();
+		this.mesh.geometry = this.geometry;
+	}
+
+	private resetMaterial() {
+		this.material = this.createMaterial();
+		this.mesh.material = this.material;
+	}
+
+	private getScaleScalar(scale: number) {
+		return (scale / 100) * this.scaleFactor;
 	}
 
 	/**
@@ -83,7 +142,10 @@ export class Sphere implements SceneSubject {
 	 * @returns the radius
 	 */
 	public getEffectiveRadius(): number {
-		return this.radius * this.scale;
+		return (
+			this.geometry.parameters.radius *
+			this.getScaleScalar(this.settings.scale)
+		);
 	}
 
 	/**
@@ -142,10 +204,6 @@ export class Sphere implements SceneSubject {
 		return [this.mesh];
 	}
 
-	/**
-	 * Updates this sphere
-	 * (currently not implemented)
-	 */
 	public update(): void {
 		// noting to update
 	}
@@ -153,8 +211,26 @@ export class Sphere implements SceneSubject {
 	/**
 	 * Disposes this sphere
 	 */
-	public dispose(): void {
+	public destroy(): void {
 		this.geometry.dispose();
 		this.material.dispose();
+		this.settings.unsubscribeAll();
+	}
+
+	/**
+	 * A helper method to calculate a scale factor for a Sphere that uses the
+	 * scene height and initial camera position as reference.
+	 *
+	 * Example:
+	 *
+	 * If the value returned by this function is used to initialize a Sphere,
+	 * a scale setting value of 10% will make the Sphere diameter be exactly
+	 * 10% of the scene height in its original camera position.
+	 */
+	public static calculateSceneHeightScaleFactor<T extends Model>(
+		scene: Scene<T>
+	): number {
+		const distance = scene.getCameraControls().getPerspectiveDistance();
+		return getHeightAt(scene.camera, distance);
 	}
 }

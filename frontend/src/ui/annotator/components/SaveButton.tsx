@@ -1,6 +1,6 @@
 import { useI18nContext } from "i18n/i18n-react";
+import { Save } from "lucide-react";
 import { toast } from "react-toastify";
-import SaveTool from "~assets/icons/save.png";
 import {
 	useAnnotator,
 	useModelInformation,
@@ -23,12 +23,20 @@ export function SaveButton() {
 
 		await annotator.save();
 
-		const dataStream = await annotator.fileManager.readAnnotationFile();
+		const dataStream =
+			await annotator.annotationFileManager.readAnnotationFile();
 		const res = await api.files.uploadAnnotationFile(
 			modelInformation.id,
 			dataStream,
-			(n) => {
-				console.log(`Upload annotation file: ${n.toFixed(0)}%`);
+			{
+				onCompressionProgress: (n) => {
+					console.log(
+						`Compressing annotation file: ${n.toFixed(0)}%`
+					);
+				},
+				onUploadProgress: (n) => {
+					console.log(`Upload annotation file: ${n.toFixed(0)}%`);
+				},
 			}
 		);
 
@@ -51,7 +59,7 @@ export function SaveButton() {
 
 	return (
 		<ToolButton
-			imagePath={SaveTool}
+			icon={<Save size={48} strokeWidth={1} />}
 			toolAlt={LL.SAVE()}
 			toolFunc={onSaveHandler}
 			key={2}

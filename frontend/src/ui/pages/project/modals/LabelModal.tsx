@@ -1,11 +1,11 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { useRef, useState, type FormEvent } from "react";
 import {
-	Color,
 	MAX_ANNOTATION_CLASS,
 	MIN_ANNOTATION_CLASS,
 	type Label,
 } from "~entity/Annotation";
+import { Color } from "~entity/Color";
 import { type Project } from "~entity/Project";
 import { LabelItemEditable } from "~ui/components/LabelItemEditable";
 import { useAPI } from "../../../contexts/APIContext";

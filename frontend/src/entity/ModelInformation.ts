@@ -20,6 +20,7 @@ export interface ModelInformation {
  */
 export enum ModelType {
 	MESH = "mesh",
+	TEXTURE_MESH = "texture_mesh",
 	POINT_CLOUD = "point_cloud",
 }
 

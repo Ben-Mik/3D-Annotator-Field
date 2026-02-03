@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { getValueInBounds } from "~util/Util";
 
 /**
  * This props object contains all props generally used by an tool
  */
 export interface NumberInputProps {
 	label: string;
+	value: number;
 	onChange: (n: number) => void;
 	min?: number;
 	max?: number;
-	defaultValue?: number;
 	step?: number;
 	tooltip?: string;
 }
@@ -21,22 +21,13 @@ export interface NumberInputProps {
  */
 export function NumberInput({
 	label,
+	value,
 	onChange,
-	defaultValue,
 	step,
 	min,
 	max,
 	tooltip = "",
 }: NumberInputProps) {
-	const [value, setValue] = useState(
-		defaultValue ? String(defaultValue) : ""
-	);
-
-	function updateValue(size: string) {
-		setValue(size);
-		onChange(+size);
-	}
-
 	const hasTip = tooltip !== "";
 	return (
 		<div className="my-auto ml-4 flex gap-2">
@@ -52,11 +43,11 @@ export function NumberInput({
 			<input
 				value={value}
 				onChange={(e) => {
-					updateValue(e.target.value);
+					onChange(+e.target.value);
 				}}
 				onBlur={(e) => {
 					const value = getValueInBounds(+e.target.value, min, max);
-					updateValue(String(value));
+					onChange(value);
 				}}
 				type="number"
 				min={min}
@@ -66,22 +57,4 @@ export function NumberInput({
 			/>
 		</div>
 	);
-}
-
-/**
- * Transforms the user input value to a value in bounds.
- *
- * @param value the user input
- * @param min the min value
- * @param max the max value
- * @returns the value in bounds
- */
-function getValueInBounds(value: number, min?: number, max?: number) {
-	let newValue = value;
-	if (min && value < min) {
-		newValue = min;
-	} else if (max && value > max) {
-		newValue = max;
-	}
-	return newValue;
 }

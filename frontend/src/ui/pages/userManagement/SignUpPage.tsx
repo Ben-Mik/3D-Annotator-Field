@@ -72,15 +72,7 @@ export function SignUpPage() {
 					</Link>
 				</div>
 			</Header>
-			<div
-				className="
-		space-b-4 fixed top-1/2
-		left-1/2 w-96 -translate-x-1/2
-
-
-		-translate-y-1/2
-		transform"
-			>
+			<div className="space-b-4 fixed left-1/2 top-1/2 w-96 -translate-x-1/2 -translate-y-1/2 transform">
 				<StandardContainer>
 					<div className="p-12">
 						<h1 className="text-2xl">{LL.REGISTER()}</h1>

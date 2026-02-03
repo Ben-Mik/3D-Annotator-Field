@@ -30,6 +30,8 @@ export function App() {
 	const [wasLoaded, setWasLoaded] = useState(false);
 
 	useEffect(() => {
+		document.title = ENV.ANNOTATOR_3D_TITLE;
+
 		loadLocaleAsync(detectedLocale).then(() => {
 			setWasLoaded(true);
 		});

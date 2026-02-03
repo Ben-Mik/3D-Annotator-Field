@@ -48,14 +48,7 @@ export function SignInPage() {
 					</Link>
 				</div>
 			</Header>
-			<div
-				className="
-					space-b-4 fixed top-1/2
-					left-1/2 w-96 -translate-x-1/2
-
-					-translate-y-1/2
-					transform"
-			>
+			<div className="space-b-4 fixed left-1/2 top-1/2 w-96 -translate-x-1/2 -translate-y-1/2 transform">
 				<StandardContainer>
 					<div className="p-12">
 						<h1 className="text-2xl">{LL.LOG_IN()}</h1>
@@ -91,7 +84,7 @@ export function SignInPage() {
 							/>
 
 							{invalidCredentials && (
-								<p className="mt-4 -mb-5 text-error">
+								<p className="-mb-5 mt-4 text-error">
 									{LL.INVALID_LOGIN_CREDENTIALS()}
 								</p>
 							)}

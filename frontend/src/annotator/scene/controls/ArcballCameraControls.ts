@@ -1,18 +1,34 @@
 import {
 	Vector3,
 	type Box3,
-	type OrthographicCamera,
-	type PerspectiveCamera,
 	type Renderer,
 	type Scene as ThreeScene,
 } from "three";
 import { ArcballControls } from "three/examples/jsm/controls/ArcballControls";
-import { Perspective } from "~entity/Perspective";
+import { type Perspective } from "~entity/Perspective";
+import { BooleanSetting } from "~settings/Settings";
+import { createSettingsManager } from "~settings/SettingsManager";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import { assertUnreachable } from "~util/TypeScript";
-import { type Camera, type CameraType } from "../Camera";
+import {
+	type Camera,
+	type CameraType,
+	type OrthographicCamera,
+	type PerspectiveCamera,
+} from "../Camera";
 import { type Scene } from "../Scene";
 import { type Model } from "../model/Model";
-import { type CameraControls } from "./CameraControls";
+import {
+	CAMERA_CONTROLS_SETTINGS,
+	type CameraControls,
+} from "./CameraControls";
+
+export const ARCBALL_CAMERA_CONTROLS_SETTINGS = {
+	showGizmos: new BooleanSetting("showGizmos", false),
+};
+
+const settingsRegistry = new LocalStorageSettingsRegistry("arcball-dB2J6");
+settingsRegistry.registerMultiple(ARCBALL_CAMERA_CONTROLS_SETTINGS);
 
 enum ArcballControlsMouseActionOperations {
 	PAN = "PAN",
@@ -31,12 +47,12 @@ enum ArcballControlsMouseActionKeys {
  * Used to change Camera properties
  */
 export class ArcballCameraControls implements CameraControls {
+	private readonly settings;
 	private readonly scene: Scene<Model>;
 	private readonly controls: ArcballControls & { target: Vector3 };
 
 	private readonly orthographicCamera: OrthographicCamera;
 	private readonly perspectiveCamera: PerspectiveCamera;
-	private fov: number;
 	private currentCamera: Camera;
 
 	private boundingBox: Box3;
@@ -57,11 +73,33 @@ export class ArcballCameraControls implements CameraControls {
 		renderer: Renderer,
 		threeScene: ThreeScene
 	) {
+		this.settings = createSettingsManager({
+			...CAMERA_CONTROLS_SETTINGS,
+			...ARCBALL_CAMERA_CONTROLS_SETTINGS,
+		});
+
 		this.scene = scene;
+
 		this.orthographicCamera = orthographicCamera;
 		this.perspectiveCamera = perspectiveCamera;
-		this.fov = this.perspectiveCamera.fov;
-		this.currentCamera = this.perspectiveCamera as Camera;
+		switch (this.settings.cameraType) {
+			case "PerspectiveCamera":
+				this.currentCamera = this.perspectiveCamera;
+				break;
+			case "OrthographicCamera":
+				this.currentCamera = this.orthographicCamera;
+				break;
+			default:
+				assertUnreachable(this.settings.cameraType);
+		}
+		this.settings.onChange("cameraType", ({ new: cameraType }) => {
+			this.setCamera(cameraType);
+		});
+
+		this.settings.onChange("fov", ({ new: fov }) => {
+			this.setFOV(fov);
+		});
+
 		this.controls = this.createArcballControls(
 			this.currentCamera,
 			renderer,
@@ -70,8 +108,12 @@ export class ArcballCameraControls implements CameraControls {
 		this.boundingBox = this.getBoundingBox();
 		this.boundingBoxMaxDimension = this.getBoundingBoxMaxDimension();
 		this.setupControls();
-		this.setCameraPerspective(Perspective.TOP);
-		this.show(false);
+		this.setCameraPerspective("TOP");
+
+		this.controls.setGizmosVisible(this.settings.showGizmos);
+		this.settings.onChange("showGizmos", ({ new: showGizmos }) => {
+			this.controls.setGizmosVisible(showGizmos);
+		});
 	}
 
 	/**
@@ -92,10 +134,18 @@ export class ArcballCameraControls implements CameraControls {
 			threeScene
 		);
 
-		controls.setMouseAction(ArcballControlsMouseActionOperations.ROTATE, 1);
 		controls.unsetMouseAction(0);
-
-		// TODO: Reenable when signals are used for settings (i.e. when UI can react to changes not made through UI)
+		controls.setMouseAction(ArcballControlsMouseActionOperations.ROTATE, 1);
+		controls.setMouseAction(
+			ArcballControlsMouseActionOperations.ROTATE,
+			0,
+			ArcballControlsMouseActionKeys.SHIFT
+		);
+		controls.setMouseAction(
+			ArcballControlsMouseActionOperations.ROTATE,
+			2,
+			ArcballControlsMouseActionKeys.SHIFT
+		);
 		controls.unsetMouseAction(
 			"WHEEL",
 			ArcballControlsMouseActionKeys.SHIFT
@@ -158,23 +208,23 @@ export class ArcballCameraControls implements CameraControls {
 		return this.currentCamera;
 	}
 
-	public setCamera(type: CameraType) {
-		this.setCameraPerspective(Perspective.TOP);
+	private setCamera(type: CameraType) {
+		this.setCameraPerspective("TOP");
 
 		if (type === "OrthographicCamera") {
-			this.currentCamera = this.orthographicCamera as Camera;
+			this.currentCamera = this.orthographicCamera;
 		} else if (type === "PerspectiveCamera") {
-			this.currentCamera = this.perspectiveCamera as Camera;
+			this.currentCamera = this.perspectiveCamera;
 		} else {
 			assertUnreachable(type);
 		}
 
-		this.setCameraPerspective(Perspective.TOP);
+		this.setCameraPerspective("TOP");
 		this.controls.setCamera(this.currentCamera);
 		this.controls.update();
 	}
 
-	public setFOV(fov: number) {
+	private setFOV(fov: number) {
 		if (this.currentCamera.isOrthographicCamera) {
 			console.error("Can't change FOV on an orthographic camera!");
 			return;
@@ -195,7 +245,6 @@ export class ArcballCameraControls implements CameraControls {
 			direction.multiplyScalar(newDistance - oldDistance)
 		);
 
-		this.fov = fov;
 		this.perspectiveCamera.fov = fov;
 		this.perspectiveCamera.updateProjectionMatrix();
 		this.controls.update();
@@ -219,22 +268,22 @@ export class ArcballCameraControls implements CameraControls {
 			: this.boundingBoxMaxDimension * 10;
 		const target = this.controls.target.clone();
 		switch (perspective) {
-			case Perspective.TOP:
+			case "TOP":
 				target.setZ(target.z + distance);
 				break;
-			case Perspective.BOTTOM:
+			case "BOTTOM":
 				target.setZ(target.z - distance);
 				break;
-			case Perspective.LEFT:
+			case "LEFT":
 				target.setX(target.x + distance);
 				break;
-			case Perspective.RIGHT:
+			case "RIGHT":
 				target.setX(target.x - distance);
 				break;
-			case Perspective.FRONT:
+			case "FRONT":
 				target.setY(target.y + distance);
 				break;
-			case Perspective.BACK:
+			case "BACK":
 				target.setY(target.y - distance);
 				break;
 			default:
@@ -248,7 +297,7 @@ export class ArcballCameraControls implements CameraControls {
 		}
 
 		if (this.currentCamera.isPerspectiveCamera) {
-			this.perspectiveCamera.fov = this.fov;
+			this.perspectiveCamera.fov = CAMERA_CONTROLS_SETTINGS.fov.get();
 		}
 
 		this.controls.update();
@@ -281,19 +330,15 @@ export class ArcballCameraControls implements CameraControls {
 			.addEventListener("contextmenu", preventContextMenu);
 	}
 
-	public show(show: boolean): void {
-		// TODO: Fix gizmo size in orthographic mode
-		this.controls.setGizmosVisible(show);
-	}
-
 	/**
 	 * Updates the ArcballControls
 	 */
 	public update(): void {
-		// ArcballControls do not need to be updated
+		// nothing to do
 	}
 
-	public dispose(): void {
+	public destroy(): void {
+		this.settings.unsubscribeAll();
 		this.controls.dispose();
 		this.scene
 			.getCanvas()

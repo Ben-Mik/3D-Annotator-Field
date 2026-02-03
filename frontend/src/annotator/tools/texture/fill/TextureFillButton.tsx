@@ -1,0 +1,22 @@
+import { useI18nContext } from "i18n/i18n-react";
+import { PaintBucket } from "lucide-react";
+import type { ToolButtonProps } from "~annotator/tools/Tool";
+import { ToolButton } from "~ui/components/ToolButton";
+
+/**
+ * The button component to select the TextureFill tool
+ *
+ * @param props the component props
+ * @returns the button component
+ */
+export function TextureFillButton({ onClick, selected }: ToolButtonProps) {
+	const { LL } = useI18nContext();
+	return (
+		<ToolButton
+			icon={<PaintBucket size={48} strokeWidth={1} />}
+			toolAlt={LL.FILL()}
+			toolFunc={onClick}
+			selected={selected}
+		/>
+	);
+}

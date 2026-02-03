@@ -1,12 +1,12 @@
 import { type Scene as ThreeScene } from "three";
 import type Stats from "three/examples/jsm/libs/stats.module";
-import { type Scene } from "./Scene";
 import { type ImageRenderer } from "./image/ImageRenderer";
 import { SimpleImageRenderer } from "./image/SimpleImageRenderer";
-import type { GlobalLighting } from "./lighting/GlobalLighting";
-import type { SunLighting } from "./lighting/SunLighting";
+import type { GlobalLighting } from "./lighting/global/GlobalLighting";
+import type { SunLighting } from "./lighting/sun/SunLighting";
 import { type Model } from "./model/Model";
-import type { PointCloud } from "./model/PointCloud";
+import type { TextureMesh } from "./model/TextureMesh";
+import { type Scene } from "./Scene";
 
 /**
  * A SceneManager
@@ -20,7 +20,7 @@ export class SceneManager {
 	 * Constructs a new instance of SceneManager
 	 *
 	 * @param scene the scene (for running everything around the )
-	 * @param threeScene the {@link THREE.Scene}
+	 * @param threeScene the {@link ThreeScene}
 	 * @param stats the performance stats
 	 */
 	constructor(scene: Scene<Model>, threeScene: ThreeScene, stats: Stats) {
@@ -63,8 +63,11 @@ export class SceneManager {
 		return this.scene.getSunLighting();
 	}
 
-	public setPointSize(size: number) {
-		const model = this.scene.getModel() as PointCloud;
-		model.setPointSize(size);
+	public getCanvas() {
+		const model = this.scene.getModel() as TextureMesh;
+		return {
+			canvas: model.getCanvas(),
+			canvasContext: model.getCanvasContext(),
+		};
 	}
 }

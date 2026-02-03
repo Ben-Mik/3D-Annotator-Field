@@ -1,15 +1,20 @@
-import {
-	type Disposable,
-	type Observer,
-	type Unsubscribe,
-} from "~entity/Types";
+import { type Destroyable } from "~entity/Types";
+import type { Subscribable } from "~events/Events";
 
 export interface UndoRedoCount {
 	undos: number;
 	redos: number;
 }
 
-export interface UndoManager extends Disposable {
+export type UndoManagerEvents = {
+	undo: void;
+	redo: void;
+	countChange: UndoRedoCount;
+};
+
+export interface UndoManager
+	extends Subscribable<UndoManagerEvents>,
+		Destroyable {
 	startGroup(): void;
 	endGroup(): void;
 
@@ -20,6 +25,4 @@ export interface UndoManager extends Disposable {
 	deactivate(): void;
 
 	reset(hard?: boolean): void;
-
-	addUndoRedoCountObserver(observer: Observer<UndoRedoCount>): Unsubscribe;
 }

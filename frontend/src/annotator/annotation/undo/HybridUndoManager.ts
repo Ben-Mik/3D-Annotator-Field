@@ -1,30 +1,39 @@
 import { ENV } from "env";
 import {
 	NEUTRAL_LABEL,
+	type AnnotationDataArray,
+	type AnnotationsLUT,
 	type Label,
 	type LabeledAnnotationData,
 } from "~entity/Annotation";
-import { type Observer, type Unsubscribe } from "~entity/Types";
-import { humanReadableDataSize } from "~util/FileUtils";
+import { EventManager } from "~events/EventManager";
+import { type Unsubscribe } from "~events/Events";
+import { humanReadableDataSize } from "~util/fileSystem/FileUtils";
 import { type AnnotationManager } from "../AnnotationManager";
-import { type UndoManager, type UndoRedoCount } from "./UndoManager";
+import type { LabelManager } from "../LabelManager";
+import {
+	type UndoManager,
+	type UndoManagerEvents,
+	type UndoRedoCount,
+} from "./UndoManager";
 
 const DEBUG = ENV.ANNOTATOR_3D_DEBUG;
 const NO_LABEL_CLASS = NEUTRAL_LABEL.annotationClass - 1;
 
 export class HybridUndoManager implements UndoManager {
+	private readonly eventManager = new EventManager<UndoManagerEvents>();
+	public on = this.eventManager.on.bind(this.eventManager);
+
 	private readonly annotationManager: AnnotationManager;
 	private readonly unsubscribe: Unsubscribe;
 
 	private active = true;
 
-	private observers = new Set<Observer<UndoRedoCount>>();
-
 	// array with arrays of LabeledAnnotationData, holds overwritten label data
 	private backwardAnnotations: LabeledAnnotationData[][];
 	private forwardAnnotations: LabeledAnnotationData[][];
 	// array for overwritten annotations within one stroke
-	private currentAnnotations: Uint16Array;
+	private currentAnnotations: AnnotationsLUT;
 	// boolean if stroke was started
 	private currentlySaving = false;
 	// boolean if currentAnnotations is dirty
@@ -40,20 +49,32 @@ export class HybridUndoManager implements UndoManager {
 	// alternatively the labels can be an argument of endStroke()
 	private readonly labelMap: Map<number, Label>;
 
-	constructor(annotationManager: AnnotationManager) {
+	constructor(
+		annotationManager: AnnotationManager,
+		labelManager: LabelManager
+	) {
 		this.annotationManager = annotationManager;
-		this.unsubscribe = annotationManager.addAnnotationObserver(
-			this.onAnnotation.bind(this)
+		this.unsubscribe = annotationManager.on(
+			"beforeAnnotation",
+			({ data }) => {
+				this.onAnnotation(data);
+			}
 		);
 
 		this.backwardAnnotations = [];
 		this.forwardAnnotations = [];
-		this.currentAnnotations = new Uint16Array(
-			annotationManager.getAnnotations().length
+		this.currentAnnotations = new Uint8Array(
+			annotationManager.getAnnotationDataLUT().length
 		);
 		this.currentAnnotations.fill(NO_LABEL_CLASS);
-		this.labelMap = new Map();
-		this.labelMap.set(NEUTRAL_LABEL.annotationClass, NEUTRAL_LABEL);
+		this.labelMap = labelManager.getLabelMap();
+	}
+
+	private getCounts(): UndoRedoCount {
+		return {
+			undos: this.backwardAnnotations.length,
+			redos: this.forwardAnnotations.length,
+		};
 	}
 
 	/**
@@ -66,15 +87,15 @@ export class HybridUndoManager implements UndoManager {
 			this.memoryUsed = 0;
 			this.backwardAnnotations = [];
 			this.forwardAnnotations = [];
-			this.notifyUndoRedoCountObservers();
+			this.eventManager.emit("countChange", this.getCounts());
 		}
 		this.currentlySaving = false;
 		this.annotated = false;
 		this.currentAnnotations.fill(NO_LABEL_CLASS);
 	}
 
-	dispose(): void {
-		this.observers.clear();
+	destroy(): void {
+		this.eventManager.destroy();
 		this.unsubscribe();
 	}
 
@@ -100,24 +121,6 @@ export class HybridUndoManager implements UndoManager {
 
 	public hasRedo(): boolean {
 		return this.forwardAnnotations.length !== 0;
-	}
-
-	public addUndoRedoCountObserver(
-		observer: Observer<UndoRedoCount>
-	): Unsubscribe {
-		this.observers.add(observer);
-		return () => {
-			this.observers.delete(observer);
-		};
-	}
-
-	private notifyUndoRedoCountObservers() {
-		for (const observer of this.observers) {
-			observer({
-				undos: this.backwardAnnotations.length,
-				redos: this.forwardAnnotations.length,
-			});
-		}
 	}
 
 	/**
@@ -165,7 +168,7 @@ export class HybridUndoManager implements UndoManager {
 			this.forwardAnnotations.shift();
 		}
 
-		this.notifyUndoRedoCountObservers();
+		this.eventManager.emit("countChange", this.getCounts());
 	}
 
 	/**
@@ -198,7 +201,7 @@ export class HybridUndoManager implements UndoManager {
 			redoSum -= this.getDataSize(oldData!) * 10;
 		}
 
-		this.notifyUndoRedoCountObservers();
+		this.eventManager.emit("countChange", this.getCounts());
 	}
 
 	/**
@@ -264,7 +267,7 @@ export class HybridUndoManager implements UndoManager {
 			this.forwardAnnotations.push(annotationData);
 		}
 
-		this.notifyUndoRedoCountObservers();
+		this.eventManager.emit("countChange", this.getCounts());
 
 		if (DEBUG) {
 			// interesting rough estimation of saved data:
@@ -294,6 +297,7 @@ export class HybridUndoManager implements UndoManager {
 
 		// save stroke as redo data and don't delete redos
 		this.endGroup(true, false);
+		this.eventManager.emit("undo", undefined);
 	}
 
 	public redo(): void {
@@ -312,6 +316,7 @@ export class HybridUndoManager implements UndoManager {
 
 		// save stroke as undo data and don't delete redos
 		this.endGroup(false, false);
+		this.eventManager.emit("redo", undefined);
 	}
 
 	private onAnnotation(newAnnotationData: LabeledAnnotationData): void {
@@ -319,16 +324,13 @@ export class HybridUndoManager implements UndoManager {
 			return;
 		}
 
-		this.labelMap.set(
-			newAnnotationData.label.annotationClass,
-			newAnnotationData.label
-		);
-
-		const annotationArray = this.annotationManager.getAnnotations();
+		const annotationArray = this.annotationManager.getAnnotationDataLUT();
 
 		if (this.currentlySaving) {
 			this.annotated = true;
-			for (const index of newAnnotationData.data) {
+			const data = newAnnotationData.data;
+			for (let i = 0; i < data.length; i++) {
+				const index = data[i];
 				// check for earlier annotation to avoid overwriting old label with label of stroke
 				if (this.currentAnnotations[index] !== NO_LABEL_CLASS) continue;
 				this.currentAnnotations[index] = annotationArray[index];
@@ -338,7 +340,10 @@ export class HybridUndoManager implements UndoManager {
 
 	private convertAnnotations(): LabeledAnnotationData[] {
 		// map to collect all indices with the same label/annotation class
-		const annotations = new Map<number, LabeledAnnotationData>();
+		const annotations = new Map<
+			number,
+			LabeledAnnotationData<AnnotationDataArray>
+		>();
 		for (let index = 0; index < this.currentAnnotations.length; index++) {
 			const annotationClass = this.currentAnnotations[index];
 			if (annotationClass === NO_LABEL_CLASS) continue;
@@ -347,6 +352,7 @@ export class HybridUndoManager implements UndoManager {
 			if (aData === undefined) {
 				const label = this.labelMap.get(annotationClass);
 				if (label === undefined) {
+					console.log(label, this.labelMap);
 					throw new Error(
 						"Unknown annotation class was overwritten!"
 					);

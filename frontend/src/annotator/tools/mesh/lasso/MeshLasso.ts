@@ -18,7 +18,7 @@ import {
 } from "three-mesh-bvh";
 import { type AnnotationManager } from "~annotator/annotation/AnnotationManager";
 import { type UndoManager } from "~annotator/annotation/undo/UndoManager";
-import { getHeightAt, getWidthAt } from "~annotator/scene/Camera";
+import { getHeightAt, getWidthAt, type Camera } from "~annotator/scene/Camera";
 import { type Scene } from "~annotator/scene/Scene";
 import { type Mesh } from "~annotator/scene/model/Mesh";
 import { Tool } from "~annotator/tools/Tool";
@@ -30,12 +30,20 @@ import {
 	getConvexHull,
 	lineCrossesLine,
 	pointRayCrossesSegments,
-} from "~annotator/tools/common/math/MathUtils";
+} from "~annotator/tools/common/utils/MathUtils";
+import type { SelectionBuffer } from "~annotator/tools/common/utils/SelectionBuffer";
+import { ColorSetting, StringSetting } from "~settings/Settings";
+import { createSettingsManager } from "~settings/SettingsManager";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import { assertUnreachable } from "~util/TypeScript";
 import { MeshLassoButton } from "./MeshLassoButton";
 import { MeshLassoQuickSettingsView } from "./MeshLassoQuickSettingsView";
+import { MeshLassoSettingsView } from "./MeshLassoSettingsView";
 
 const LL = getI18NContext();
+
+const NAME = "MESH_LASSO";
+const DISTANCE_FROM_CAMERA = 0.1;
 
 export const SELECTION_MODES = [
 	{
@@ -55,28 +63,31 @@ export const SELECTION_MODES = [
 	},
 ] as const;
 
-export interface Parameters {
-	selectionMode: (typeof SELECTION_MODES)[number]["name"];
-}
+export const MESH_LASSO_SETTINGS = {
+	selectionMode: new StringSetting<(typeof SELECTION_MODES)[number]["name"]>(
+		"selectionMode",
+		"centroid"
+	),
+	lineColor: new ColorSetting("lineColor", 0xff9800),
+};
 
-const NAME = "MESH_LASSO";
-const DISTANCE_FROM_CAMERA = 0.1;
+const settingsRegistry = new LocalStorageSettingsRegistry(NAME + "-0m8E4");
+settingsRegistry.registerMultiple(MESH_LASSO_SETTINGS);
 
 /**
  * A lasso tool to select point cloud data
  * (inspired by https://github.com/gkjohnson/three-mesh-bvh)
  */
 export class MeshLasso extends Tool<Mesh> {
-	public readonly parameters: Parameters = {
-		selectionMode: "centroid",
-	};
+	private readonly settings;
 
-	private selectionShape!: Line;
+	private bvhMesh?: ThreeMesh;
+
 	private selectionPoints: number[] = [];
+	private selectionShape!: Line;
 	private selectionShapeNeedsUpdate = false;
 	private selectionNeedsUpdate = false;
 	private pressed = false;
-	private bvhMesh?: ThreeMesh;
 
 	// handle building lasso shape
 	private prevX = -Infinity;
@@ -124,9 +135,12 @@ export class MeshLasso extends Tool<Mesh> {
 	constructor(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<Mesh>
+		scene: Scene<Mesh>,
+		selectionBuffer: SelectionBuffer
 	) {
-		super(NAME, annotationManager, undoManager, scene);
+		super(NAME, annotationManager, undoManager, scene, selectionBuffer);
+
+		this.settings = createSettingsManager(MESH_LASSO_SETTINGS);
 	}
 
 	protected override getOnSelectedListenerBundles(): ListenerBundle[] {
@@ -137,17 +151,27 @@ export class MeshLasso extends Tool<Mesh> {
 		// selection shape
 		this.selectionShape = new Line(
 			new BufferGeometry(),
-			new LineBasicMaterial({ color: "#ff9800" })
+			this.createSelectionShapeMaterial(this.settings.lineColor)
 		);
 		this.selectionShape.renderOrder = 1;
 		this.selectionShape.position.z = -DISTANCE_FROM_CAMERA;
+
+		this.settings.onChange("lineColor", ({ new: color }) => {
+			this.selectionShape.material =
+				this.createSelectionShapeMaterial(color);
+		});
 	}
 
-	protected override onDispose(): void {
+	private createSelectionShapeMaterial(color: number) {
+		return new LineBasicMaterial({ color });
+	}
+
+	protected override onDestroy(): void {
 		for (const camera of this.scene.cameras) {
 			camera.remove(this.selectionShape);
 		}
 		this.selectionShape.geometry.dispose();
+		this.settings.unsubscribeAll();
 	}
 
 	protected override onSelected(): void {
@@ -198,8 +222,20 @@ export class MeshLasso extends Tool<Mesh> {
 		this.scene.camera.remove(this.selectionShape);
 	}
 
+	protected override onCameraChange(
+		oldCamera: Camera,
+		newCamera: Camera
+	): void {
+		oldCamera.remove(this.selectionShape);
+		newCamera.add(this.selectionShape);
+	}
+
 	public getToolButtonComponent() {
 		return MeshLassoButton;
+	}
+
+	public override getSettingsComponent() {
+		return MeshLassoSettingsView;
 	}
 
 	public getQuickSettingsComponent() {
@@ -333,8 +369,8 @@ export class MeshLasso extends Tool<Mesh> {
 					min: Vector3;
 					max: Vector3;
 				},
-				isLeaf: boolean,
-				score,
+				_isLeaf: boolean,
+				_score,
 				depth: number
 			) => {
 				// Get the bounding box points
@@ -465,7 +501,8 @@ export class MeshLasso extends Tool<Mesh> {
 				const segmentsToCheck = this.perBoundsSegments[depth];
 				const vertices = [triangle.a, triangle.b, triangle.c];
 
-				switch (this.parameters.selectionMode) {
+				const selectionMode = this.settings.selectionMode;
+				switch (selectionMode) {
 					case "centroid": {
 						// get the center of the triangle
 						const centroid = triangle.a
@@ -546,7 +583,7 @@ export class MeshLasso extends Tool<Mesh> {
 						break;
 					}
 					default:
-						assertUnreachable(this.parameters.selectionMode);
+						assertUnreachable(selectionMode);
 				}
 				return false;
 			},

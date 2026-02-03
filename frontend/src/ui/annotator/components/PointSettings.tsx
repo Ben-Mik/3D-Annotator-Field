@@ -1,12 +1,13 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { useState } from "react";
-import { DEFAULT_POINT_SIZE } from "~annotator/scene/model/builder/PointCloudBuilder";
+import { POINT_CLOUD_SETTINGS } from "~annotator/scene/model/PointCloud";
 import { ModelType } from "~entity/ModelInformation";
 import {
 	useAnnotator,
 	useModelInformation,
 } from "~ui/annotator/contexts/AnnotatorContext";
 import { StandardContainer } from "~ui/components/StandardContainer";
+import { useSetting } from "../hooks/Settings";
 
 export function PointSettings() {
 	const annotator = useAnnotator();
@@ -14,17 +15,12 @@ export function PointSettings() {
 	const { LL } = useI18nContext();
 
 	const [collapsed, setCollapsed] = useState(true);
-	const [pointSize, setPointSize] = useState<number>(DEFAULT_POINT_SIZE);
-
-	function onPointSizeChange(fov: number): void {
-		annotator?.sceneManager.setPointSize(fov);
-		setPointSize(fov);
-	}
+	const [pointSize, setPointSize] = useSetting(POINT_CLOUD_SETTINGS.size);
 
 	return modelInformation?.modelType === ModelType.POINT_CLOUD ? (
 		<StandardContainer styling="select-none p-5 pb-2">
 			<h1
-				className={`mb-2 -mt-2 text-center text-xl ${
+				className={`-mt-2 mb-2 text-center text-xl ${
 					annotator ? "hover:cursor-pointer" : ""
 				}`}
 				onClick={() => {
@@ -45,13 +41,13 @@ export function PointSettings() {
 				<div className="mt-2">
 					<input
 						type="range"
-						min={0}
-						max={1}
-						step={0.01}
-						value={pointSize}
 						className="range range-primary range-xs"
+						min={POINT_CLOUD_SETTINGS.size.min}
+						max={POINT_CLOUD_SETTINGS.size.max}
+						step={0.005}
+						value={pointSize}
 						onChange={({ target }) => {
-							onPointSizeChange(+target.value);
+							setPointSize(+target.value);
 						}}
 					/>
 				</div>

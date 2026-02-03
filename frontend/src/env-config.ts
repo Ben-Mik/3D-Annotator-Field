@@ -5,10 +5,9 @@ export const ENV_PREFIX = "ANNOTATOR_3D_";
 
 const ENV_SCHEMA = {
 	ANNOTATOR_3D_API_BASE_URL: z.string(),
+	ANNOTATOR_3D_TITLE: z.string().default("3D-Annotator"),
 	ANNOTATOR_3D_DEBUG: z.coerce.boolean().default(false),
 	ANNOTATOR_3D_LOGGING_LEVEL: z.coerce.number().min(0).max(3).default(0),
-	ANNOTATOR_3D_SHOW_STATS: z.coerce.boolean().default(true),
-	ANNOTATOR_3D_RESET_OPFS: z.coerce.boolean().default(false),
 	ANNOTATOR_3D_BACKEND_VERSION: z.string().default("unknown"),
 	ANNOTATOR_3D_BACKEND_VERSION_SHA: z.string().default("-"),
 	ANNOTATOR_3D_FRONTEND_VERSION: z.string().default("working tree"),

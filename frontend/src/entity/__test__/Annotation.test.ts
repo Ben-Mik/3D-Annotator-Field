@@ -1,4 +1,5 @@
-import { Color, DEFAULT_ALPHA_VALUE, Label } from "~entity/Annotation";
+import { MutableLabel } from "~entity/Annotation";
+import { Color, DEFAULT_ALPHA_VALUE } from "~entity/Color";
 
 export function createColor(red = 0, green = 0, blue = 0) {
 	return new Color(red, green, blue);
@@ -10,7 +11,7 @@ export function createLabel(
 	name = "",
 	color: Color = createColor()
 ) {
-	return new Label(id, annotationClass, name, color);
+	return new MutableLabel(id, annotationClass, name, color);
 }
 
 export function createLabels(count: number, start = 0) {
@@ -124,26 +125,26 @@ describe("Annotation", () => {
 	describe("Label", () => {
 		test("constructor", () => {
 			const color = createColor();
-			const label = new Label(0, 0, "name", color);
+			const label = new MutableLabel(0, 0, "name", color);
 			expect(label.id).toBe(0);
 			expect(label.annotationClass).toBe(0);
 			expect(label.name).toBe("name");
 			expect(label.color).toEqual(color);
 
-			const label2 = new Label(3452, 23452, "test1234", color);
+			const label2 = new MutableLabel(3452, 233, "test1234", color);
 			expect(label2.id).toBe(3452);
-			expect(label2.annotationClass).toBe(23452);
+			expect(label2.annotationClass).toBe(233);
 			expect(label2.name).toBe("test1234");
 		});
 
 		test("constructor with illegal annotationClass", () => {
 			const color = createColor();
 			expect(() => {
-				new Label(0, -1, "", color);
+				new MutableLabel(0, -1, "", color);
 			}).toThrow("out of bounds");
 
 			expect(() => {
-				new Label(0, Math.pow(2, 16), "", color);
+				new MutableLabel(0, Math.pow(2, 8), "", color);
 			}).toThrow("out of bounds");
 		});
 	});

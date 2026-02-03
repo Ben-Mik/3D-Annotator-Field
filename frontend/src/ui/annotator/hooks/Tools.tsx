@@ -16,15 +16,9 @@ export function useTools() {
 		const tools = annotator.toolManager.getTools();
 		setTools(tools);
 
-		const unsubscribe = annotator.toolManager.addSelectedToolObserver(
-			(tool) => {
-				if (tool) {
-					setSelectedTool(tool);
-				} else {
-					setSelectedTool(undefined);
-				}
-			}
-		);
+		const unsubscribe = annotator.toolManager.on("selected", (tool) => {
+			setSelectedTool(tool);
+		});
 
 		return unsubscribe;
 	}, [annotator]);

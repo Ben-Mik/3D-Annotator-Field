@@ -18,7 +18,8 @@ import {
 	transformLabelResource,
 } from "~api/v1/resources/Transformations";
 import { validateString } from "~api/v1/validation/Validation";
-import { type Color, type Label } from "~entity/Annotation";
+import { type Label } from "~entity/Annotation";
+import type { Color } from "~entity/Color";
 
 const ENDPOINT = "labels/";
 

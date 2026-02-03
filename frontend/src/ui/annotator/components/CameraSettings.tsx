@@ -1,41 +1,29 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { useState } from "react";
 import { type CameraType } from "~annotator/scene/Camera";
+import { ARCBALL_CAMERA_CONTROLS_SETTINGS } from "~annotator/scene/controls/ArcballCameraControls";
+import { CAMERA_CONTROLS_SETTINGS } from "~annotator/scene/controls/CameraControls";
 import { useAnnotator } from "~ui/annotator/contexts/AnnotatorContext";
 import { StandardContainer } from "~ui/components/StandardContainer";
+import { useSetting } from "../hooks/Settings";
 
 export function CameraSettings() {
 	const annotator = useAnnotator();
 	const { LL } = useI18nContext();
 
 	const [collapsed, setCollapsed] = useState(true);
-	const [selectedCamera, setSelectedCamera] =
-		useState<CameraType>("PerspectiveCamera");
-	const [fov, setFov] = useState<number>(30);
-
-	function onFOVChange(fov: number): void {
-		annotator!.sceneManager.getCameraControls().setFOV(fov);
-		setFov(fov);
-	}
-
-	function onShowGizmos(show: boolean): void {
-		annotator!.sceneManager.getCameraControls().show(show);
-	}
-
-	function onCameraSwitch(type: CameraType): void {
-		const tool = annotator!.toolManager.unselectCurrentTool();
-		annotator!.sceneManager.getCameraControls().setCamera(type);
-		if (tool) {
-			annotator!.toolManager.selectTool(tool);
-		}
-
-		setSelectedCamera(type);
-	}
+	const [selectedCamera, setSelectedCamera] = useSetting(
+		CAMERA_CONTROLS_SETTINGS.cameraType
+	);
+	const [fov, setFov] = useSetting(CAMERA_CONTROLS_SETTINGS.fov);
+	const [showGizmos, setShowGizmos] = useSetting(
+		ARCBALL_CAMERA_CONTROLS_SETTINGS.showGizmos
+	);
 
 	return (
 		<StandardContainer styling="select-none p-5 pb-2">
 			<h1
-				className={`mb-2 -mt-2 text-center text-xl ${
+				className={`-mt-2 mb-2 text-center text-xl ${
 					annotator ? "hover:cursor-pointer" : ""
 				}`}
 				onClick={() => {
@@ -52,8 +40,9 @@ export function CameraSettings() {
 					<input
 						type="checkbox"
 						className="toggle"
+						checked={showGizmos}
 						onChange={({ target }) => {
-							onShowGizmos(target.checked);
+							setShowGizmos(target.checked);
 						}}
 					/>
 				</div>
@@ -62,7 +51,7 @@ export function CameraSettings() {
 					className="select select-bordered select-sm mt-4 w-full max-w-xs"
 					value={selectedCamera}
 					onChange={({ currentTarget }) => {
-						onCameraSwitch(currentTarget.value as CameraType);
+						setSelectedCamera(currentTarget.value as CameraType);
 					}}
 				>
 					<option value="PerspectiveCamera">
@@ -82,14 +71,14 @@ export function CameraSettings() {
 				<div className="mt-2">
 					<input
 						type="range"
-						min={25}
-						max={90}
+						min={CAMERA_CONTROLS_SETTINGS.fov.min}
+						max={CAMERA_CONTROLS_SETTINGS.fov.max}
 						step={1}
 						value={fov}
 						className="range range-primary range-xs"
 						disabled={selectedCamera === "OrthographicCamera"}
 						onChange={({ target }) => {
-							onFOVChange(+target.value);
+							setFov(+target.value);
 						}}
 					/>
 				</div>

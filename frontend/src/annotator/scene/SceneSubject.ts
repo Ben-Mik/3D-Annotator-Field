@@ -1,10 +1,10 @@
 import { type Object3D } from "three";
-import { type Disposable, type Updatable } from "~entity/Types";
+import { type Destroyable, type Updatable } from "~entity/Types";
 
 /**
  * A SceneSubject
  */
-export interface SceneSubject extends Updatable, Disposable {
+export interface SceneSubject extends Updatable, Destroyable {
 	/**
 	 * Returns objects as Iterable
 	 *

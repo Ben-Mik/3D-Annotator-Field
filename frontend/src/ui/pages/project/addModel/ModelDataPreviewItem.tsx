@@ -1,7 +1,7 @@
 import { useI18nContext } from "i18n/i18n-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { Delete } from "~assets/icons/Delete";
-import { Edit } from "~assets/icons/Edit";
+
 import { ModelType } from "~entity/ModelInformation";
 import { StandardContainer } from "~ui/components/StandardContainer";
 
@@ -73,6 +73,8 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 						".TXT" as const,
 						".anno3d" as const,
 						".ANNO3D" as const,
+						".png" as const,
+						".PNG" as const,
 					],
 				},
 			},
@@ -187,7 +189,7 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 									void onModelDataChange();
 								}}
 							>
-								<Edit />
+								<Pencil strokeWidth={1.25} size={20} />
 							</div>
 						</div>
 						{modelFile?.name}
@@ -221,7 +223,7 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 											}
 										}}
 									>
-										<Edit />
+										<Pencil strokeWidth={1.25} size={20} />
 									</div>
 								</div>
 								<div
@@ -243,7 +245,7 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 											}
 										}}
 									>
-										<Delete />
+										<Trash2 strokeWidth={1.25} size={20} />
 									</div>
 								</div>
 							</div>
@@ -268,7 +270,7 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 									onAnnotationChange();
 								}}
 							>
-								<Edit />
+								<Pencil strokeWidth={1.25} size={20} />
 							</div>
 							<div
 								className="ml-1 h-5 w-5 cursor-pointer text-base-content hover:scale-110"
@@ -276,7 +278,7 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 									onAnnotationChange(true);
 								}}
 							>
-								<Delete />
+								<Trash2 strokeWidth={1.25} size={20} />
 							</div>
 						</div>
 
@@ -284,12 +286,12 @@ export function ModelDataPreviewItem(props: ModelDataPreviewItemProps) {
 					</div>
 				</div>
 				<div
-					className="my-auto mx-4 h-10 w-10 cursor-pointer hover:scale-110"
+					className="mx-4 my-auto h-10 w-10 cursor-pointer hover:scale-110"
 					onClick={() => {
 						props.removePreviewItem(props.id);
 					}}
 				>
-					<Delete />
+					<Trash2 strokeWidth={1} size={36} />
 				</div>
 			</div>
 		</StandardContainer>

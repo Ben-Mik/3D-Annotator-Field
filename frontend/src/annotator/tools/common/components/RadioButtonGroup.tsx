@@ -9,9 +9,9 @@ interface Choice {
  */
 interface Props<Choices extends readonly Choice[]> {
 	label: string;
-	onChange: (name: Choices[number]["name"]) => void;
-	defaultValue?: Choices[number]["name"];
 	choices: Choices;
+	value: Choices[number]["name"];
+	onChange: (name: Choices[number]["name"]) => void;
 }
 
 /**
@@ -24,7 +24,7 @@ interface Props<Choices extends readonly Choice[]> {
 export function RadioButtonGroup<Choices extends readonly Choice[]>({
 	label,
 	onChange,
-	defaultValue,
+	value,
 	choices,
 }: Props<Choices>) {
 	return (
@@ -39,7 +39,7 @@ export function RadioButtonGroup<Choices extends readonly Choice[]>({
 						data-title={displayName}
 						title={description}
 						className="btn btn-outline"
-						defaultChecked={name === defaultValue}
+						checked={name === value}
 						onChange={(e) => {
 							if (e.target.checked) {
 								onChange(name);

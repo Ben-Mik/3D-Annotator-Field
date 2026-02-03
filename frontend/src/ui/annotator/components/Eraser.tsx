@@ -1,30 +1,17 @@
 import { useI18nContext } from "i18n/i18n-react";
-import EraserIcon from "~assets/icons/eraser.png";
-import { useAnnotator } from "~ui/annotator/contexts/AnnotatorContext";
+import { LucideEraser } from "lucide-react";
 import { useLabels } from "~ui/annotator/hooks/Labels";
 import { ToolButton } from "~ui/components/ToolButton";
 
 export function Eraser() {
 	const { LL } = useI18nContext();
-	const annotator = useAnnotator();
-
-	const { currentLabel, isEraserSelected } = useLabels();
-
-	function onEraserSelectedHandler() {
-		if (!annotator) return;
-
-		if (isEraserSelected && currentLabel) {
-			annotator.labelManager.selectLabel(currentLabel);
-		} else {
-			annotator.labelManager.selectEraser();
-		}
-	}
+	const { isEraserSelected, toggleEraser } = useLabels();
 
 	return (
 		<ToolButton
-			imagePath={EraserIcon}
+			icon={<LucideEraser size={48} strokeWidth={1} />}
 			toolAlt={LL.ERASER()}
-			toolFunc={onEraserSelectedHandler}
+			toolFunc={toggleEraser}
 			selected={isEraserSelected}
 		/>
 	);

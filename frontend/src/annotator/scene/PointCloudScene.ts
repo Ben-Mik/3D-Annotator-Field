@@ -6,6 +6,6 @@ import { Scene } from "./Scene";
  */
 export class PointCloudScene extends Scene<PointCloud> {
 	protected createModel(): PointCloud {
-		return new PointCloud();
+		return new PointCloud(this.cacheScope);
 	}
 }

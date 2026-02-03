@@ -1,7 +1,7 @@
-import { type ToolQuickSettingsProps } from "~annotator/tools/Tool";
 import { NumberInput } from "~annotator/tools/common/components/NumberInput";
-import { SphereSettings } from "~annotator/tools/common/elements/sphere/SphereSettings";
-import { type PointCloudBrush3D } from "./PointCloudBrush3D";
+import { SphereQuickSettingsView } from "~annotator/tools/common/elements/sphere/SphereQuickSettingsView";
+import { useSetting } from "~ui/annotator/hooks/Settings";
+import { POINT_CLOUD_BRUSH_3D_SETTINGS } from "./PointCloudBrush3D";
 
 /**
  * The button component to access the quick setting oft the PointBrush
@@ -9,24 +9,25 @@ import { type PointCloudBrush3D } from "./PointCloudBrush3D";
  * @param props the component props
  * @returns the settings component
  */
-export function PointCloudBrush3DQuickSettingsView(
-	props: ToolQuickSettingsProps
-) {
-	const tool = props.tool as PointCloudBrush3D;
-	const parameters = tool.parameters;
+export function PointCloudBrush3DQuickSettingsView() {
+	const [raycastThreshold, setRaycastThreshold] = useSetting(
+		POINT_CLOUD_BRUSH_3D_SETTINGS.raycastThreshold
+	);
 
 	return (
 		<div className="flex">
-			<SphereSettings params={parameters} />
+			<SphereQuickSettingsView
+				sizeSetting={POINT_CLOUD_BRUSH_3D_SETTINGS.scale}
+			/>
 			<NumberInput
 				label="Snap Distance:"
-				defaultValue={parameters.raycastThreshold}
-				onChange={(n: number) => {
-					parameters.raycastThreshold = n;
+				onChange={(n) => {
+					setRaycastThreshold(n);
 				}}
+				value={raycastThreshold}
+				min={POINT_CLOUD_BRUSH_3D_SETTINGS.raycastThreshold.min}
+				max={POINT_CLOUD_BRUSH_3D_SETTINGS.raycastThreshold.max}
 				step={0.001}
-				min={0.001}
-				max={0.5}
 				tooltip={"Suchradius um den Zeiger"}
 			/>
 		</div>

@@ -22,10 +22,10 @@ def createLabelDict(
 
 DATA: dict[str, Iterable[Any]] = {
     "users": [
-        createUserDict("testUser2", "test1@test.de", "test12345"),
-        createUserDict("testUser3", "test2@test.de", "test12345"),
-        createUserDict("testUser4", "test4@test.de", "test12345"),
-        createUserDict("testUser5", "test4@test.de", "test12345"),
+        createUserDict("testUser2", "test1@test.example", "test12345"),
+        createUserDict("testUser3", "test2@test.example", "test12345"),
+        createUserDict("testUser4", "test4@test.example", "test12345"),
+        createUserDict("testUser5", "test4@test.example", "test12345"),
     ],
     "projects": [
         createProjectDict("testUser2", "testProject1", "Test project 1 description"),

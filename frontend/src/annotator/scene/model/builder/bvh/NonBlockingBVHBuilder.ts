@@ -5,12 +5,13 @@ import {
 	type TypedArray,
 } from "three";
 import { MeshBVH, type MeshBVHOptions } from "three-mesh-bvh";
+import type { Destroyable } from "~entity/Types";
 import type {
 	BVHBuilderWorkerReceive,
 	BVHBuilderWorkerSend,
 } from "./WorkerTypes";
 
-export class NonBlockingBVHBuilder {
+export class NonBlockingBVHBuilder implements Destroyable {
 	private running: boolean;
 	private worker: Worker | null;
 
@@ -36,7 +37,9 @@ export class NonBlockingBVHBuilder {
 		}
 
 		if (this.worker === null) {
-			throw new Error("NonBlockingBVHBuilder: Worker has been disposed.");
+			throw new Error(
+				"NonBlockingBVHBuilder: Worker has been terminated."
+			);
 		}
 
 		const worker = this.worker;
@@ -121,7 +124,7 @@ export class NonBlockingBVHBuilder {
 		});
 	}
 
-	public dispose() {
+	public destroy() {
 		if (!this.worker) return;
 		this.worker.terminate();
 		this.worker = null;

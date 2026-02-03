@@ -1,15 +1,23 @@
-import { ENV } from "env";
 import { useEffect, useRef } from "react";
+import { BooleanSetting } from "~settings/Settings";
+import { LocalStorageSettingsRegistry } from "~settings/SettingsRegistry";
 import { useAnnotator } from "~ui/annotator/contexts/AnnotatorContext";
+import { useSetting } from "../hooks/Settings";
 
-const SHOW_STATS = ENV.ANNOTATOR_3D_SHOW_STATS;
+export const STATS_SETTING = new BooleanSetting("showStats", true);
+const statsSettingsRegistry = new LocalStorageSettingsRegistry(
+	"stats-Exc69H2F"
+);
+statsSettingsRegistry.register(STATS_SETTING);
 
 export function Stats() {
 	const statsRef = useRef<HTMLDivElement>(null);
 	const annotator = useAnnotator();
 
+	const [showStats] = useSetting(STATS_SETTING);
+
 	useEffect(() => {
-		if (!SHOW_STATS || !annotator) return;
+		if (!annotator) return;
 
 		const statsWrapper = statsRef.current;
 		const stats = annotator.sceneManager.getStatsElement();
@@ -23,7 +31,7 @@ export function Stats() {
 		return () => {
 			statsWrapper?.removeChild(stats);
 		};
-	}, [annotator]);
+	}, [annotator, showStats]);
 
-	return <div ref={statsRef}></div>;
+	return showStats ? <div ref={statsRef}></div> : null;
 }

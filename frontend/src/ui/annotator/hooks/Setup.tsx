@@ -10,10 +10,13 @@ import {
 import { MeshAnnotator } from "~annotator/MeshAnnotator";
 import { PointCloudAnnotator } from "~annotator/PointCloudAnnotator";
 import type { Model } from "~annotator/scene/model/Model";
+import { TextureAnnotator } from "~annotator/TextureAnnotator";
 import { Errors } from "~api/Errors";
+import { createMainThreadCacheRuntime } from "~cache/index";
 import { ModelType, type ModelInformation } from "~entity/ModelInformation";
 import { useAPI } from "~ui/contexts/APIContext";
 import { useAuth } from "~ui/contexts/AuthContext";
+import { getOpfsOverview } from "~util/fileSystem/OriginPrivateFileSystem";
 import { assertUnreachable } from "~util/TypeScript";
 import { useAnnotatorContext } from "../contexts/AnnotatorContext";
 
@@ -103,7 +106,7 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 				}
 				modelInformation = modelRes.value;
 				setModelInformation(modelInformation);
-			} catch (error) {
+			} catch {
 				navigate("/404");
 				return;
 			}
@@ -190,31 +193,45 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 				throw new Error("Canvas ref is null!");
 			}
 
+			const runtime = await createMainThreadCacheRuntime();
+
 			switch (modelInformation.modelType) {
 				case ModelType.MESH:
 					annotator = new MeshAnnotator(
+						runtime,
+						user!,
 						sceneParentRef.current,
 						modelInformation,
-						labels,
-						user!.id
+						labels
+					);
+					break;
+				case ModelType.TEXTURE_MESH:
+					annotator = new TextureAnnotator(
+						runtime,
+						user!,
+						sceneParentRef.current,
+						modelInformation,
+						labels
 					);
 					break;
 				case ModelType.POINT_CLOUD:
 					annotator = new PointCloudAnnotator(
+						runtime,
+						user!,
 						sceneParentRef.current,
 						modelInformation,
-						labels,
-						user!.id
+						labels
 					);
 					break;
 				default:
 					assertUnreachable(modelInformation.modelType);
 			}
+
 			/**
 			 * Download modelFile
 			 */
 
-			if (!(await annotator.fileManager.hasModelFiles())) {
+			if (!(await annotator.modelFileManager.hasModelFiles())) {
 				// no model file
 
 				updateLoadingState(LL.DOWNLOADING_MODEL());
@@ -240,7 +257,7 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 					}
 				}
 				updateLoadingState(LL.WRITING_MODEL_TO_STORAGE());
-				await annotator.fileManager.writeModelFiles(res.value);
+				await annotator.modelFileManager.writeModelFiles(res.value);
 			}
 			/**
 			 *  Download annotationFile
@@ -278,11 +295,13 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 					}
 				}
 				updateLoadingState(LL.WRITING_ANNOTATION_TO_STORAGE());
-				await annotator.fileManager.writeAnnotationFile(res.value);
+				await annotator.annotationFileManager.writeAnnotationFile(
+					res.value.data
+				);
 			}
 
 			// log state of origin private file system
-			const tree = await annotator.fileManager.getTree();
+			const tree = await getOpfsOverview();
 			console.groupCollapsed("File system tree:");
 			console.log(tree);
 			console.groupEnd();
@@ -322,82 +341,74 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 				const error = result.error;
 				console.error(`Setup error:`, error);
 
+				let errorMessage: string;
+
 				switch (error.code) {
 					case "UNKNOWN_LABEL":
-						updateLoadingState(
-							LL.UNKNOWN_LABEL(),
-							undefined,
-							false,
-							true
-						);
-						toast.error(
-							LL.PARSER_ANNOTATION_CLASS_MISSING({
-								annotationClass: error.payload.annotationClass,
-							})
-						);
+						errorMessage = LL.PARSER_UNKNOWN_LABEL({
+							annotationClass: error.payload.annotationClass,
+						});
 						break;
+
 					case "DUPLICATE_LABEL":
-						updateLoadingState(
-							LL.DUPLICATE_LABEL(),
-							undefined,
-							false,
-							true
-						);
-						toast.error(
-							LL.PARSER_ANNOTATION_CLASS_DUPLICATE({
-								annotationClass: error.payload.annotationClass,
-							})
-						);
+						errorMessage = LL.PARSER_DUPLICATE_LABEL({
+							annotationClass: error.payload.annotationClass,
+						});
 						break;
+
+					case "INCONSISTENT_LABELS":
+						errorMessage = LL.PARSER_INCONSISTENT_LABELS({
+							annotationClass: error.payload.annotationClass,
+						});
+						break;
+
+					case "INVALID_NEUTRAL_LABEL":
+						errorMessage = LL.PARSER_INVALID_NEUTRAL_LABEL({
+							annotationClass: error.payload.annotationClass,
+						});
+						break;
+
+					case "UNKNOWN_MODEL_TYPE":
+						errorMessage = LL.PARSER_UNKNOWN_MODEL_TYPE({
+							modelType: error.payload.modelType,
+						});
+						break;
+
+					case "UNKNOWN_FILE_TYPE":
+						errorMessage = LL.PARSER_UNKNOWN_FILE_TYPE();
+						break;
+
 					case "UNSUPPORTED":
-						updateLoadingState(
-							LL.UNSUPPORTED_FILE_FORMAT() +
-								" " +
-								error.payload.format +
-								" " +
-								error.payload.version +
-								".",
-							undefined,
-							false,
-							true
-						);
-						toast.error(
-							LL.PARSER_UNSUPPORTED_FILE_FORMAT({
-								format: error.payload.format,
-								version: error.payload.version,
-							})
-						);
+						errorMessage = LL.PARSER_UNSUPPORTED_FILE_FORMAT({
+							format: error.payload.format,
+							version: error.payload.version,
+							expectedVersion: error.payload.expectedVersion,
+						});
 						break;
+
 					case "PARSING_ERROR":
-						updateLoadingState(
-							LL.PARSING_ERROR(),
-							undefined,
-							false,
-							true
-						);
-						toast.error(LL.PARSER_ERROR());
+						errorMessage = LL.PARSER_GENERIC_ERROR();
 						break;
+
+					case "LENGTH_MISMATCH":
+						errorMessage = LL.PARSER_ANNOTATION_LENGTH_MISMATCH();
+						break;
+
 					case "UNSUPPORTED_FILE_SIZE":
-						updateLoadingState(
-							LL.UNSUPPORTED_FILE_SIZE(),
-							undefined,
-							false,
-							true
-						);
-						toast.error(LL.MODEL_FILE_TOO_BIG());
+						errorMessage = LL.MODEL_FILE_TOO_BIG();
 						break;
+
 					default:
 						assertUnreachable(error);
 				}
+
+				updateLoadingState(errorMessage, undefined, false, true);
+				toast.error(errorMessage, { autoClose: false });
 
 				navigate(`/project/${modelInformation.projectId}`);
 
 				return;
 			}
-
-			// annotator.undoManager.addUndoRedoCountObserver(
-			// 	undoRedoCountObserver
-			// );
 
 			updateLoadingState(LL.FINISHED_SETUP(), undefined, false);
 			annotator.start();
@@ -411,7 +422,7 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 			setupAbortController.abort();
 
 			if (annotator) {
-				annotator.dispose();
+				annotator.destroy();
 			}
 
 			if (modelInformation) {

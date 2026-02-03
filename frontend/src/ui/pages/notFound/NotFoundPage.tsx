@@ -8,11 +8,7 @@ export function NotFoundPage() {
 		<>
 			<Header />
 
-			<p
-				className="mx-auto mt-60 mb-6 h-24 animate-bounce bg-gradient-to-r from-slate-900
-				via-blue-800 to-slate-900 bg-clip-text text-center text-6xl font-semibold
-				text-transparent"
-			>
+			<p className="mx-auto mb-6 mt-60 h-24 animate-bounce bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 bg-clip-text text-center text-6xl font-semibold text-transparent">
 				{LL.PAGE_NOT_FOUND()}
 			</p>
 			<div className="mx-auto flex place-content-center">

@@ -1,32 +1,34 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { useState } from "react";
-import { DEFAULT_OPACITY } from "~annotator/scene/visualizer/AnnotationVisualizer";
+import { VISUALIZER_SETTINGS } from "~annotator/scene/visualizer/AnnotationVisualizer";
 import { LockClosed } from "~assets/icons/LockClosed";
 import { LockOpen } from "~assets/icons/LockOpen";
 import { type Label } from "~entity/Annotation";
-import { useAnnotator } from "~ui/annotator/contexts/AnnotatorContext";
 import { useLabels } from "~ui/annotator/hooks/Labels";
 import { StandardContainer } from "~ui/components/StandardContainer";
+import { useSetting } from "../hooks/Settings";
 
 export function LabelMenu() {
 	const { LL } = useI18nContext();
-	const annotator = useAnnotator();
-	const { labels, currentLabel, isEraserSelected, notifyLabelChange } =
-		useLabels();
+	const {
+		labels,
+		currentLabel,
+		isEraserSelected,
+		selectLabel,
+		toggleLock,
+		toggleVisibility,
+	} = useLabels();
 
-	const [opacity, setOpacity] = useState<number>(DEFAULT_OPACITY);
-
-	function onLabelOpacityChange(opacity: number): void {
-		annotator!.changeVisualizerOpacity(opacity);
-		setOpacity(opacity);
-	}
+	const [opacity, setOpacity] = useSetting(VISUALIZER_SETTINGS.opacity);
 
 	const [collapsed, setCollapsed] = useState(true);
 
 	const labelElements = labels.map((element) => (
 		<LabelMenuItem
 			label={element}
-			notifyLabelChange={notifyLabelChange}
+			selectLabel={selectLabel}
+			toggleLock={toggleLock}
+			toggleVisibility={toggleVisibility}
 			key={element.id}
 		/>
 	));
@@ -50,7 +52,9 @@ export function LabelMenu() {
 							<div className="select-none">
 								<LabelMenuItem
 									label={currentLabel}
-									notifyLabelChange={notifyLabelChange}
+									selectLabel={selectLabel}
+									toggleLock={toggleLock}
+									toggleVisibility={toggleVisibility}
 									key={currentLabel.id}
 								/>
 							</div>
@@ -73,13 +77,13 @@ export function LabelMenu() {
 						<div className="px-2">
 							<input
 								type="range"
-								min={0}
-								max={100}
+								min={VISUALIZER_SETTINGS.opacity.min * 100}
+								max={VISUALIZER_SETTINGS.opacity.max * 100}
 								step={1}
 								value={opacity * 100}
 								className="range range-primary range-xs"
 								onChange={({ target }) => {
-									onLabelOpacityChange(+target.value / 100);
+									setOpacity(+target.value / 100);
 								}}
 							/>
 						</div>
@@ -92,37 +96,18 @@ export function LabelMenu() {
 
 export interface LabelMenuItemProps {
 	label: Label;
-	notifyLabelChange: () => void;
+	selectLabel: (label: Label) => void;
+	toggleLock: (label: Label) => void;
+	toggleVisibility: (label: Label) => void;
 }
 
 export function LabelMenuItem({
 	label,
-	notifyLabelChange,
+	selectLabel,
+	toggleLock,
+	toggleVisibility,
 }: LabelMenuItemProps) {
-	const annotator = useAnnotator();
 	const { LL } = useI18nContext();
-
-	function onLabelSelected(label: Label) {
-		if (!annotator) return;
-		if (!label.annotationVisible) {
-			label.annotationVisible = true;
-			annotator.notifyVisualizerChange();
-		}
-
-		annotator.labelManager.selectLabel(label);
-	}
-
-	function onLabelLocked(label: Label): void {
-		label.locked = !label.locked;
-		notifyLabelChange();
-	}
-
-	function onLabelHideAnnotation(label: Label): void {
-		if (!annotator) return;
-		label.annotationVisible = !label.annotationVisible;
-		annotator.notifyVisualizerChange();
-		notifyLabelChange();
-	}
 
 	const labelCircleStyles = {
 		backgroundColor: label.annotationVisible
@@ -135,7 +120,7 @@ export function LabelMenuItem({
 		<div
 			className="flex cursor-pointer items-center gap-4 p-2"
 			onClick={() => {
-				onLabelSelected(label);
+				selectLabel(label);
 			}}
 		>
 			<div
@@ -146,21 +131,19 @@ export function LabelMenuItem({
 				style={labelCircleStyles}
 				onClick={(e) => {
 					e.stopPropagation();
-					onLabelHideAnnotation(label);
+					toggleVisibility(label);
 				}}
 			></div>
 			<div className="w-24 grow">{label.name}</div>
-			{onLabelLocked !== undefined && (
-				<div
-					className="h-6 w-6 shrink-0 select-none text-base-content"
-					onClick={(e) => {
-						e.stopPropagation();
-						onLabelLocked(label);
-					}}
-				>
-					{label.locked ? <LockClosed /> : <LockOpen />}
-				</div>
-			)}
+			<div
+				className="h-6 w-6 shrink-0 select-none text-base-content"
+				onClick={(e) => {
+					e.stopPropagation();
+					toggleLock(label);
+				}}
+			>
+				{label.locked ? <LockClosed /> : <LockOpen />}
+			</div>
 		</div>
 	);
 }

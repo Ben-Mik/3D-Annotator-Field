@@ -1,20 +1,25 @@
 import { useI18nContext } from "i18n/i18n-react";
-import { Database, FileBox, UserRound } from "lucide-react";
+import {
+	Database,
+	FileBox,
+	LockKeyhole,
+	LockKeyholeOpen,
+	UserRound,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Errors } from "~api/Errors";
-import { LockClosed } from "~assets/icons/LockClosed";
-import { LockOpen } from "~assets/icons/LockOpen";
 import { ModelType, type ModelInformation } from "~entity/ModelInformation";
 import { type FullProject } from "~entity/Project";
 import { useAPI } from "~ui/contexts/APIContext";
 import { useAuth } from "~ui/contexts/AuthContext";
-import { useProjectPageStore } from "~ui/pages/project/ProjectPage";
 import { UpdateModelDataModal } from "~ui/pages/project/modals/UpdateModelDataModal";
+import { useProjectPageStore } from "~ui/pages/project/ProjectPage";
 import {
 	humanReadableDataSize,
-	writeStreamToLocalFileSystem,
-} from "~util/FileUtils";
+	writeToLocalFileSystem,
+} from "~util/fileSystem/FileUtils";
+import { assertUnreachable } from "~util/TypeScript";
 import { StandardContainer } from "../../components/StandardContainer";
 
 interface ModelDataItemProps {
@@ -46,9 +51,24 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 		if (res.isErr()) {
 			return Promise.resolve(res.error.code);
 		}
-		const stream = res.value;
-		await writeStreamToLocalFileSystem(stream);
+		const { data } = res.value;
+		await writeToLocalFileSystem(new Blob([data]));
 		return Promise.resolve(undefined);
+	}
+
+	let modelTypeString;
+	switch (model.modelType) {
+		case ModelType.MESH:
+			modelTypeString = LL.TRIANGLE_MESH();
+			break;
+		case ModelType.TEXTURE_MESH:
+			modelTypeString = LL.TRIANGLE_MESH_TEXTURE();
+			break;
+		case ModelType.POINT_CLOUD:
+			modelTypeString = LL.POINT_CLOUD();
+			break;
+		default:
+			assertUnreachable(model.modelType);
 	}
 
 	return (
@@ -56,16 +76,14 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 			<div className="my-4 flex min-w-fit grow items-center gap-6 p-6">
 				<div>
 					<h2 className="text-xl">{model.name}</h2>
-					<p className="mt-2 space-x-2">
+					<div className="mt-2 space-x-2">
 						<div className="badge badge-outline">
 							<UserRound size={14} className="mr-1" />{" "}
 							{model.owner.username}
 						</div>
 						<div className="badge badge-outline">
 							<FileBox size={14} className="mr-1" />
-							{model.modelType === ModelType.MESH
-								? LL.TRIANGLE_MESH()
-								: LL.POINT_CLOUD()}
+							{modelTypeString}
 						</div>
 						<div className="badge badge-outline">
 							<Database size={14} className="mr-1" />
@@ -75,7 +93,7 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 								0
 							)}
 						</div>
-					</p>
+					</div>
 				</div>
 
 				<UpdateModelDataModal id={model.id} name={model.name} />
@@ -120,8 +138,11 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 									unlockModelData(model.id);
 								}}
 							>
-								<div className="mr-1 -ml-1 h-6 w-6 text-base-content">
-									<LockOpen />
+								<div className="-ml-1 mr-1 h-6 w-6">
+									<LockKeyholeOpen
+										strokeWidth={1.25}
+										size={24}
+									/>
 								</div>
 								{LL.UNLOCK()}
 							</button>
@@ -140,7 +161,7 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 						>
 							<button className="btn btn-disabled" disabled>
 								<div className="p h-6 w-6 text-base-content">
-									<LockClosed />
+									<LockKeyhole strokeWidth={1.25} size={24} />
 								</div>
 							</button>
 						</div>

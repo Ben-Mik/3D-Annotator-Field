@@ -1,12 +1,9 @@
 import { err, ok, type Result } from "neverthrow";
 import { type BufferGeometry, type Texture } from "three";
-import { type Observer } from "~entity/Types";
-import { hasFileExtension } from "~util/FileUtils";
-import {
-	type Loader,
-	type LoaderError,
-	type ModelLoaderWorker,
-} from "./Loader";
+import { type Observer } from "~events/Events";
+import { hasFileExtension } from "~util/fileSystem/FileUtils";
+import { getBufferGeometryInfo, getTextureInfo } from "~util/Three";
+import { type Loader, type LoaderError } from "./Loader";
 import {
 	NonBlockingOBJLoader,
 	OBJ_FILE_EXTENSIONS,
@@ -18,7 +15,7 @@ import {
 import { TEXTURE_FILE_EXTENSIONS, TextureLoader } from "./TextureLoader";
 
 interface GenericLoaderResult {
-	geometry: BufferGeometry;
+	geometry?: BufferGeometry;
 	texture?: Texture;
 }
 
@@ -41,7 +38,8 @@ export class GenericLoader implements Loader<GenericLoaderResult, File[]> {
 	 */
 	public async load(
 		files: File[],
-		onProgress?: Observer<number>
+		onProgress?: Observer<number>,
+		skipModel = false
 	): Promise<Result<GenericLoaderResult, LoaderError>> {
 		if (files.length === 0) {
 			throw new Error("expected at least one file");
@@ -51,21 +49,24 @@ export class GenericLoader implements Loader<GenericLoaderResult, File[]> {
 			throw new Error("Not more than two files supported.");
 		}
 
-		let modelLoader: ModelLoaderWorker | undefined;
+		let modelLoaderConstructor;
 		let modelFile: File | undefined;
 
 		let textureLoader: TextureLoader | undefined;
 		let textureFile: File | undefined;
 
 		for (const file of files) {
-			if (!modelLoader && hasFileExtension(file, OBJ_FILE_EXTENSIONS)) {
-				modelLoader = new NonBlockingOBJLoader();
+			if (
+				!modelLoaderConstructor &&
+				hasFileExtension(file, OBJ_FILE_EXTENSIONS)
+			) {
+				modelLoaderConstructor = NonBlockingOBJLoader;
 				modelFile = file;
 			} else if (
-				!modelLoader &&
+				!modelLoaderConstructor &&
 				hasFileExtension(file, PLY_FILE_EXTENSIONS)
 			) {
-				modelLoader = new NonBlockingPLYLoader();
+				modelLoaderConstructor = NonBlockingPLYLoader;
 				modelFile = file;
 			} else if (
 				!textureLoader &&
@@ -78,34 +79,50 @@ export class GenericLoader implements Loader<GenericLoaderResult, File[]> {
 			}
 		}
 
-		if (!modelLoader || !modelFile) {
+		if (!modelLoaderConstructor || !modelFile) {
 			throw new Error(`unable to select a model loader`);
 		}
 
+		const modelLoader = skipModel
+			? undefined
+			: new modelLoaderConstructor();
+
 		if (textureLoader && textureFile) {
 			const [geometryRes, textureRes] = await Promise.all([
-				modelLoader.load(modelFile, onProgress),
+				modelLoader
+					? modelLoader.load(modelFile, onProgress)
+					: Promise.resolve(undefined),
 				textureLoader.load(textureFile),
 			]);
-			modelLoader.dispose();
 
-			if (geometryRes.isErr()) {
+			modelLoader?.destroy();
+
+			if (geometryRes && geometryRes.isErr()) {
 				return err(geometryRes.error);
 			}
 
+			const geometry = geometryRes?.value;
+			const texture = textureRes.value;
+			console.log(getTextureInfo(texture));
 			return ok({
-				geometry: geometryRes.value,
-				texture: textureRes.value,
+				geometry,
+				texture,
 			});
 		} else {
+			if (!modelLoader) {
+				return ok({ geometry: undefined });
+			}
+
 			const geometryRes = await modelLoader.load(modelFile, onProgress);
+			modelLoader.destroy();
 
 			if (geometryRes.isErr()) {
 				return err(geometryRes.error);
 			}
 
-			modelLoader.dispose();
-			return ok({ geometry: geometryRes.value });
+			const geometry = geometryRes.value;
+			console.log(getBufferGeometryInfo(geometry));
+			return ok({ geometry });
 		}
 	}
 }

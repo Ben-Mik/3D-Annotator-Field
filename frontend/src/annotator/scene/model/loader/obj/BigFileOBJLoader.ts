@@ -17,6 +17,7 @@ import {
 	Vector3,
 } from "three";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader";
+import { StreamingLineDecoder } from "~util/encoding/StreamingLineDecoder";
 
 // o object_name | g group_name
 const _object_pattern = /^[og]\s*(.+)?/;
@@ -400,7 +401,7 @@ function ParserState() {
  * A clone of the three.js OBJLoader that enables parsing OBJ files larger
  * than {@link MAX_UTF8_FILE_LENGTH}.
  */
-class BigFileOBJLoader extends Loader {
+export class BigFileOBJLoader extends Loader<Group> {
 	private materials: MTLLoader.MaterialCreator | null;
 
 	constructor(manager?: LoadingManager) {
@@ -421,11 +422,12 @@ class BigFileOBJLoader extends Loader {
 		loader.setPath(this.path);
 		loader.setRequestHeader(this.requestHeader);
 		loader.setWithCredentials(this.withCredentials);
+		loader.setResponseType("arraybuffer");
 		loader.load(
 			url,
-			function (text) {
+			function (buffer) {
 				try {
-					onLoad(scope.parse(text as string));
+					onLoad(scope.parse(new Uint8Array(buffer as ArrayBuffer)));
 				} catch (e) {
 					if (onError) {
 						onError(e as ErrorEvent);
@@ -447,29 +449,30 @@ class BigFileOBJLoader extends Loader {
 		return this;
 	}
 
-	parse(text: string): Group {
-		if (text.indexOf("\r\n") !== -1) {
-			// This is faster than String.split with regex that splits on both
-			text = text.replace(/\r\n/g, "\n");
-		}
-
-		if (text.indexOf("\\\n") !== -1) {
-			// join lines separated by a line continuation character (\)
-			text = text.replace(/\\\n/g, "");
-		}
-
-		const lines = text.split("\n");
-
-		return this.parseLines(lines);
-	}
-
-	parseLines(lines: string[]): Group {
+	parse(file: Uint8Array): Group {
 		const state = new (ParserState as any)();
-
 		let result: any[] | null = [];
 
-		for (let i = 0, l = lines.length; i < l; i++) {
-			const line = lines[i].trimStart();
+		let lineContinuationBuffer = "";
+
+		const decoder = new StreamingLineDecoder(file);
+
+		for (const newLine of decoder) {
+			let line: string;
+
+			if (lineContinuationBuffer.length > 0) {
+				line = lineContinuationBuffer + newLine;
+				lineContinuationBuffer = "";
+			} else {
+				line = newLine;
+			}
+
+			if (line.endsWith("\\")) {
+				lineContinuationBuffer = line.substring(0, line.length - 1);
+				continue;
+			}
+
+			line = line.trimStart();
 
 			if (line.length === 0) continue;
 
@@ -850,5 +853,3 @@ class BigFileOBJLoader extends Loader {
 		return container;
 	}
 }
-
-export { BigFileOBJLoader as MyOBJLoader };

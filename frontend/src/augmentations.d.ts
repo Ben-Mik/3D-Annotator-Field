@@ -17,4 +17,9 @@ declare global {
 		postMessage<T>(message: T, transfer: Transferable[]): void;
 		postMessage<T>(message: T, options?: StructuredSerializeOptions): void;
 	}
+
+	// missing FileSystemCreateWritableOptions (only available in chrome)
+	interface FileSystemCreateWritableOptions {
+		mode?: undefined | "exclusive" | "siloed";
+	}
 }

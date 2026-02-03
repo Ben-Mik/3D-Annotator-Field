@@ -31,7 +31,7 @@ const NAMING_CONVENTION = [
 		selector: "variable",
 		format: ["camelCase"],
 		filter: {
-			regex: "LL",
+			regex: "(LL|[A-Z]{2}Dot[A-Z]{2}|[ABC].)",
 			match: false,
 		},
 	},
@@ -68,12 +68,18 @@ module.exports = {
 		 */
 
 		"@typescript-eslint/no-empty-interface": "off",
+
 		// Non-null-assertions are the cleaner option in many situations.
 		"@typescript-eslint/no-non-null-assertion": "off",
+
 		// In ui code or when relying on not perfectly typed library code, those conditions are often necessary.
 		"@typescript-eslint/no-unnecessary-condition": "off",
+
 		// TODO: Revisit. As of now there is no clean solution.
 		"@typescript-eslint/no-invalid-void-type": "off",
+
+		// The Event helpers need types instead of interfaces
+		"@typescript-eslint/consistent-type-definitions": "off",
 
 		/*
 		 * CONFIGS
@@ -93,9 +99,20 @@ module.exports = {
 		],
 		"@typescript-eslint/consistent-type-exports": "error",
 		"@typescript-eslint/naming-convention": ["error", ...NAMING_CONVENTION],
+		"@typescript-eslint/no-unused-vars": [
+			"error",
+			{
+				args: "all",
+				argsIgnorePattern: "^_",
+				caughtErrors: "all",
+				caughtErrorsIgnorePattern: "^_",
+				destructuredArrayIgnorePattern: "^_",
+				varsIgnorePattern: "^_",
+				ignoreRestSiblings: true,
+			},
+		],
 		"import/newline-after-import": "error",
 		"import/no-default-export": "error",
-		"import/no-namespace": "error",
 		"consistently-named-imports/consistently-named-imports": [
 			"error",
 			{
@@ -116,6 +133,14 @@ module.exports = {
 					{
 						name: "MathUtils",
 						desiredName: "ThreeMathUtils",
+					},
+					{
+						name: "OrthographicCamera",
+						desiredName: "ThreeOrthographicCamera",
+					},
+					{
+						name: "PerspectiveCamera",
+						desiredName: "ThreePerspectiveCamera",
 					},
 				],
 				sources: ["three", "three/**"],
@@ -159,6 +184,17 @@ module.exports = {
 						format: ["camelCase", "PascalCase"],
 					},
 				],
+			},
+		},
+		{
+			// for high performance paths, classic for is preferred
+			files: [
+				"src/annotator/**/*.ts",
+				"src/util/**/*.ts",
+				"src/anno3d/**/*.ts",
+			],
+			rules: {
+				"@typescript-eslint/prefer-for-of": "off",
 			},
 		},
 	],

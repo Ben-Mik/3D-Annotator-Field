@@ -1,44 +1,33 @@
 import { type BufferAttribute } from "three";
-import { type LabeledAnnotationData } from "~entity/Annotation";
+import type { LabelManager } from "~annotator/annotation/LabelManager";
+import {
+	type AnnotationsLUT,
+	type LabeledAnnotationData,
+} from "~entity/Annotation";
 import { type Scene } from "../Scene";
 import { type PointCloud } from "../model/PointCloud";
-import {
-	DEFAULT_OPACITY,
-	type AnnotationVisualizer,
-} from "./AnnotationVisualizer";
+import { BaseVisualizer, VISUALIZER_SETTINGS } from "./AnnotationVisualizer";
 
 /**
  * A visualizer for point cloud data
  */
-export class PointCloudAnnotationVisualizer implements AnnotationVisualizer {
+export class PointCloudAnnotationVisualizer extends BaseVisualizer {
 	private readonly scene: Scene<PointCloud>;
 	private readonly originalColors: Float32Array;
-	private opacity = DEFAULT_OPACITY;
 
 	/**
 	 * Constructs a new instance of {@link PointCloudAnnotationVisualizer}
 	 *
 	 * @param scene a {@link Scene} of type {@link PointCloud}
 	 */
-	constructor(scene: Scene<PointCloud>) {
+	constructor(scene: Scene<PointCloud>, labelManager: LabelManager) {
+		super(VISUALIZER_SETTINGS, labelManager);
 		this.scene = scene;
 		const geometry = scene.getModel().getPoints().geometry;
 		const colorAttribute = geometry.getAttribute(
 			"color"
 		) as BufferAttribute;
 		this.originalColors = Float32Array.from(colorAttribute.array);
-	}
-
-	/**
-	 * Dispose the visualization
-	 * (Currently does nothing)
-	 */
-	public dispose(): void {
-		// nothing to dispose
-	}
-
-	public setOpacity(opacity: number): void {
-		this.opacity = opacity;
 	}
 
 	public visualize({ label, data }: LabeledAnnotationData) {
@@ -48,22 +37,19 @@ export class PointCloudAnnotationVisualizer implements AnnotationVisualizer {
 		const color = label.color.floatValues;
 
 		const newColorPart =
-			label.isNeutral() || !label.annotationVisible ? 0 : this.opacity;
+			label.isNeutral || !label.annotationVisible
+				? 0
+				: this.settings.opacity;
 		const originalColorPart = 1 - newColorPart;
 
-		for (const vertex of data) {
-			colorAttr.setX(
+		for (let i = 0; i < data.length; i++) {
+			const vertex = data[i];
+			colorAttr.setXYZ(
 				vertex,
 				color[0] * newColorPart +
-					this.originalColors[vertex * 3] * originalColorPart
-			);
-			colorAttr.setY(
-				vertex,
+					this.originalColors[vertex * 3] * originalColorPart,
 				color[1] * newColorPart +
-					this.originalColors[vertex * 3 + 1] * originalColorPart
-			);
-			colorAttr.setZ(
-				vertex,
+					this.originalColors[vertex * 3 + 1] * originalColorPart,
 				color[2] * newColorPart +
 					this.originalColors[vertex * 3 + 2] * originalColorPart
 			);
@@ -72,7 +58,9 @@ export class PointCloudAnnotationVisualizer implements AnnotationVisualizer {
 		colorAttr.needsUpdate = true;
 	}
 
-	public visualizeAll(data: LabeledAnnotationData[]): void {
+	protected visualizeAllWithLabeledAnnotationData(
+		data: LabeledAnnotationData[]
+	) {
 		const geometry = this.scene.getModel().getPoints().geometry;
 		const colorAttr = geometry.getAttribute("color") as BufferAttribute;
 
@@ -81,5 +69,35 @@ export class PointCloudAnnotationVisualizer implements AnnotationVisualizer {
 		for (const currentData of data) {
 			this.visualize(currentData);
 		}
+	}
+
+	protected visualizeAllWithAnnotationsLUT(data: AnnotationsLUT): void {
+		const labelLUT = this.labelManager.getLabelLUT();
+		const geometry = this.scene.getModel().getPoints().geometry;
+		const colorAttr = geometry.getAttribute("color") as BufferAttribute;
+
+		for (let vertex = 0; vertex < data.length; vertex++) {
+			const label = labelLUT[data[vertex]]!;
+
+			const color = label.color.floatValues;
+
+			const newColorPart =
+				label.isNeutral || !label.annotationVisible
+					? 0
+					: this.settings.opacity;
+			const originalColorPart = 1 - newColorPart;
+
+			colorAttr.setXYZ(
+				vertex,
+				color[0] * newColorPart +
+					this.originalColors[vertex * 3] * originalColorPart,
+				color[1] * newColorPart +
+					this.originalColors[vertex * 3 + 1] * originalColorPart,
+				color[2] * newColorPart +
+					this.originalColors[vertex * 3 + 2] * originalColorPart
+			);
+		}
+
+		colorAttr.needsUpdate = true;
 	}
 }

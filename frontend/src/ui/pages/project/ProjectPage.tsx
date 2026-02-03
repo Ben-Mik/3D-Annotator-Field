@@ -71,7 +71,7 @@ export function ProjectPage() {
 				}
 				setProjectDetails(res.value);
 				setLoading(false);
-			} catch (err) {
+			} catch {
 				navigate("/404");
 			}
 			setLoading(false);

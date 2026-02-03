@@ -1,24 +1,25 @@
 import { useI18nContext } from "i18n/i18n-react";
-import { type ToolQuickSettingsProps } from "~annotator/tools/Tool";
 import { RadioButtonGroup } from "~annotator/tools/common/components/RadioButtonGroup";
-import { SELECTION_MODES, type MeshLasso } from "./MeshLasso";
+import { useSetting } from "~ui/annotator/hooks/Settings";
+import { MESH_LASSO_SETTINGS, SELECTION_MODES } from "./MeshLasso";
 
 /**
  * The component to access the quick setting of the LassoTool
  */
-export function MeshLassoQuickSettingsView(props: ToolQuickSettingsProps) {
-	const tool = props.tool as MeshLasso;
-	const params = tool.parameters;
+export function MeshLassoQuickSettingsView() {
 	const { LL } = useI18nContext();
+	const [selectionMode, setSelectionMode] = useSetting(
+		MESH_LASSO_SETTINGS.selectionMode
+	);
 	return (
 		<div className="flex">
 			<RadioButtonGroup
 				label={LL.SELECTION_MODE() + ":"}
 				onChange={(mode) => {
-					params.selectionMode = mode;
+					setSelectionMode(mode);
 				}}
 				choices={SELECTION_MODES}
-				defaultValue={params.selectionMode}
+				value={selectionMode}
 			/>
 		</div>
 	);

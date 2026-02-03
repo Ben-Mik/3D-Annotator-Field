@@ -9,22 +9,24 @@ export function useUpdateAnnotationFile() {
 	const api = useAPI();
 
 	async function updateAnnotationFile(modelId: number, annotationFile: File) {
-		const fileStream = annotationFile.stream();
-
 		const id = toast.info(LL.COMPRESSING(), {
 			isLoading: true,
 		});
 
 		const filesRes = await api.files.uploadAnnotationFile(
 			modelId,
-			fileStream,
-			(n) => {
-				//if (n < 100) {
-				toast.update(id, {
-					progress: n / 100,
-					isLoading: false,
-					render: LL.UPLOADING(),
-				});
+			{
+				data: annotationFile.stream(),
+				size: annotationFile.size,
+			},
+			{
+				onUploadProgress: (n) => {
+					toast.update(id, {
+						progress: n / 100,
+						isLoading: false,
+						render: LL.UPLOADING(),
+					});
+				},
 			}
 		);
 
