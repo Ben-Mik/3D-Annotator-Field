@@ -9,9 +9,7 @@
 
 
 
-
-https://github.com/user-attachments/assets/8ee09ba1-d207-4dc9-afa0-bfd9402ca731
-
+https://github.com/user-attachments/assets/63018444-dab7-4e17-9a53-49f16f5cb2fb
 
 
 
@@ -52,7 +50,7 @@ Currently, our primary focus is on semantic segmentation. However, the tool’s 
 
 
 
-https://github.com/user-attachments/assets/f27b5376-3567-4371-939a-1fc75afe218a
+https://github.com/user-attachments/assets/61221b59-2589-4fed-8325-4777a1935f9e
 
 
 
@@ -62,7 +60,7 @@ This tool functions as a movable sphere that allows users to paint labels onto t
 
 
 
-https://github.com/user-attachments/assets/fe1f3601-1ee9-4919-a8c1-934b5f10a952
+https://github.com/user-attachments/assets/1283bf76-4e64-42a0-9549-8d7f8b8c0750
 
 
 
@@ -75,7 +73,7 @@ The Lasso tool is designed for freeform selection, giving users the ability to l
 
 
 
-https://github.com/user-attachments/assets/33f94be1-b042-4156-ae59-c4f82bad45c6
+https://github.com/user-attachments/assets/c7965d46-219d-456f-a961-0fb874f7de1d
 
 
 
@@ -85,7 +83,7 @@ The Polygon tool provides structured selections. Set corner points to create a p
 
 
 
-https://github.com/user-attachments/assets/e3005771-f492-486c-9596-9253960a2a5e
+https://github.com/user-attachments/assets/e422b7ac-9d99-4922-a95c-f3ecf3ac6ebe
 
 
 
@@ -95,7 +93,8 @@ The Brush tool for point clouds operates similarly to the 3D-Brush. It features 
 
 
 
-https://github.com/user-attachments/assets/238b1a2a-6fd2-4797-8104-4814e37ac780
+https://github.com/user-attachments/assets/5193e6c1-9476-41d6-80c0-d008e1e63920
+
 
 
 
@@ -105,7 +104,8 @@ A one‑click action that assigns the selected label to all pixels. Elements alr
 
 
 
-https://github.com/user-attachments/assets/bab030af-4edf-4387-bb1a-17290ff6e259
+https://github.com/user-attachments/assets/56297d35-65b9-4155-90d0-863c06642ffe
+
 
 
 
@@ -115,7 +115,7 @@ Click a triangle of the mesh to label all texture pixels mapped to that triangle
 
 
 
-https://github.com/user-attachments/assets/629e26e2-746c-4051-8001-65e8ed96850a
+https://github.com/user-attachments/assets/55924a04-e03d-4993-8c81-3aa999e6f18b
 
 
 
