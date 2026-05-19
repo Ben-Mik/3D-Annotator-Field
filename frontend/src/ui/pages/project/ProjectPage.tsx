@@ -142,6 +142,25 @@ export function ProjectPage() {
 										projectId={projectId}
 									/>
 								</div>
+								<div className="mb-4">
+									<a
+										href={(() => {
+											const base = `http://macbookben.local:5002/projects/${projectId}/new-job`;
+											try {
+												const stored = localStorage.getItem("annotatorUserData");
+												const token = stored ? JSON.parse(stored).token : null;
+												return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+											} catch {
+												return base;
+											}
+										})()}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="btn btn-primary normal-case w-full"
+									>
+										Add model via ODM
+									</a>
+								</div>
 								<h2 className="text-xl">{LL.LABELS()}</h2>
 								<ul className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
 									{!loading && labelItemList}
