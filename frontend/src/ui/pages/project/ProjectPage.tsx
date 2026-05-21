@@ -145,7 +145,7 @@ export function ProjectPage() {
 								<div className="mb-4">
 									<a
 										href={(() => {
-											const base = `http://macbookben.local:5002/projects/${projectId}/new-job`;
+											const base = `${window.location.origin}/odm-link/projects/${projectId}/new-job`;
 											try {
 												const stored = localStorage.getItem("annotatorUserData");
 												const token = stored ? JSON.parse(stored).token : null;
