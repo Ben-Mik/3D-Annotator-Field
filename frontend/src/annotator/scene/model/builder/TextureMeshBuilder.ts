@@ -3,6 +3,7 @@ import {
 	MeshPhongMaterial,
 	MirroredRepeatWrapping,
 	NearestFilter,
+	SRGBColorSpace,
 	Mesh as ThreeMesh,
 	UVMapping,
 	type BufferGeometry,
@@ -114,6 +115,10 @@ export class TextureMeshBuilder {
 			MirroredRepeatWrapping,
 			NearestFilter
 		);
+		// Photo-derived textures are sRGB-encoded. Without this hint, Three.js
+		// treats the pixel values as linear, which makes lit meshes look ~2x
+		// too dark (or weirdly washed out).
+		canvasTexture.colorSpace = SRGBColorSpace;
 		const context = canvas.getContext("2d");
 		if (!context) {
 			throw new Error("Could not create canvas context!");
