@@ -230,6 +230,11 @@ const de: Translation = {
 	SETTING_SUN_LIGHT_COLOR: "Sonnenlichtfarbe",
 	SETTING_SUN_LIGHT_COLOR_DESC: "Die Farbe des Sonnenlichts.",
 
+	SETTINGS_ADVANCED: "Erweitert",
+	SETTING_MIPMAPS: "Textur-Mipmaps",
+	SETTING_MIPMAPS_DESC:
+		"Mipmaps für die Textur generieren, damit Annotationen beim weiten Herauszoomen weich aussehen. Auf langsameren Geräten (z. B. Tablets) deaktivieren, um Pinselstriche zu beschleunigen; herausgezoomte Kanten können dann leicht ausgefranst wirken.",
+
 	SETTING_DEFAULT_MESH_COLOR: "Standard-Mesh-Farbe",
 	SETTING_DEFAULT_MESH_COLOR_DESC:
 		"Die Scheitelpunktfarbe, die verwendet wird, wenn weder Scheitelpunktfarbinformationen noch Texturen vorhanden sind.",

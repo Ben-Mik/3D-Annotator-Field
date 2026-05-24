@@ -226,6 +226,11 @@ const en: BaseTranslation = {
 	SETTING_SUN_LIGHT_COLOR: "Sun Light Color",
 	SETTING_SUN_LIGHT_COLOR_DESC: "The color of the sun light.",
 
+	SETTINGS_ADVANCED: "Advanced",
+	SETTING_MIPMAPS: "Texture Mipmaps",
+	SETTING_MIPMAPS_DESC:
+		"Generate texture mipmaps so annotations look smooth when zoomed far out. Disable on slower devices (e.g. tablets) for faster brush strokes; zoomed-out edges may look slightly aliased.",
+
 	SETTING_DEFAULT_MESH_COLOR: "Default Mesh Color",
 	SETTING_DEFAULT_MESH_COLOR_DESC:
 		"The vertex color used if neither vertex color information nor a texture is found.",

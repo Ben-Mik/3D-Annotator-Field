@@ -8,6 +8,7 @@ import {
 } from "react";
 import { GLOBAL_LIGHTING_SETTINGS } from "~annotator/scene/lighting/global/GlobalLighting";
 import { SUN_LIGHTING_SETTINGS } from "~annotator/scene/lighting/sun/SunLighting";
+import { TEXTURE_RENDERING_SETTINGS } from "~annotator/scene/model/TextureRenderingSettings";
 import { SCENE_SETTINGS } from "~annotator/scene/Scene";
 import { humanReadableDataSize } from "~util/fileSystem/FileUtils";
 import {
@@ -141,6 +142,20 @@ export function SettingsModal() {
 						</SettingsSection>
 
 						<SettingsSection>{annotatorSettings}</SettingsSection>
+
+						<SettingsSection>
+							<SettingsHeading>
+								{LL.SETTINGS_ADVANCED()}
+							</SettingsHeading>
+							<ToggleSettingView
+								setting={
+									TEXTURE_RENDERING_SETTINGS.mipmapsEnabled
+								}
+								name={LL.SETTING_MIPMAPS()}
+								description={LL.SETTING_MIPMAPS_DESC()}
+								needsReload
+							></ToggleSettingView>
+						</SettingsSection>
 
 						<SettingsSection>
 							<SettingsHeading>{LL.TOOLS()}</SettingsHeading>

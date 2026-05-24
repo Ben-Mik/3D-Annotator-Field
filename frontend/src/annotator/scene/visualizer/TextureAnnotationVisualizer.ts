@@ -1,4 +1,12 @@
-import type { CanvasTexture } from "three";
+import {
+	LinearMipmapLinearFilter,
+	LinearMipmapNearestFilter,
+	NearestMipmapLinearFilter,
+	NearestMipmapNearestFilter,
+	type CanvasTexture,
+	type TextureFilter,
+	type WebGLRenderer,
+} from "three";
 import type { LabelManager } from "~annotator/annotation/LabelManager";
 import {
 	type AnnotationsLUT,
@@ -30,6 +38,17 @@ const SETTINGS = {
 
 const LOG_INTERVAL = 750; // ms
 
+const MIPMAP_MIN_FILTERS = new Set<TextureFilter>([
+	NearestMipmapNearestFilter,
+	NearestMipmapLinearFilter,
+	LinearMipmapNearestFilter,
+	LinearMipmapLinearFilter,
+]);
+
+function minFilterUsesMipmaps(filter: TextureFilter): boolean {
+	return MIPMAP_MIN_FILTERS.has(filter);
+}
+
 /**
  * A visualizer for texture annotated mesh data
  */
@@ -49,6 +68,10 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 	private readonly labelColorsB: Float32Array;
 
 	private readonly currentImage: ImageData;
+	private readonly currentImagePixels: Uint8Array;
+
+	private readonly renderer: WebGLRenderer;
+	private readonly gl: WebGL2RenderingContext | null;
 
 	private readonly throttledLog: (s: string, execute?: boolean) => void;
 
@@ -91,6 +114,15 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 		this.originalColors.set(image.data);
 
 		this.currentImage = image;
+		this.currentImagePixels = new Uint8Array(
+			image.data.buffer,
+			image.data.byteOffset,
+			image.data.byteLength
+		);
+
+		this.renderer = scene.renderer;
+		const ctx = scene.renderer.getContext();
+		this.gl = ctx instanceof WebGL2RenderingContext ? ctx : null;
 
 		this.throttledLog = createTimeoutProxy((s: string) => {
 			console.log(s);
@@ -129,9 +161,12 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 	}
 
 	private visualizeWithFill({ label, data }: LabeledAnnotationData) {
+		if (data.length === 0) return;
+
 		const current = this.currentImage.data;
 		const original = this.originalColors;
 		const width = this.canvas.width;
+		const height = this.canvas.height;
 
 		let labelR, labelG, labelB;
 		let oneMinusOpacity;
@@ -148,6 +183,11 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 
 		const context = this.canvasContext;
 
+		let minX = width;
+		let minY = height;
+		let maxX = 0;
+		let maxY = 0;
+
 		for (let i = 0; i < data.length; i++) {
 			const index = data[i]!;
 			const p = index * 4; // position in ImageData (*4 for RGBA)
@@ -163,11 +203,16 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 			const x = index % width;
 			const y = Math.floor(index / width);
 
+			if (x < minX) minX = x;
+			if (x > maxX) maxX = x;
+			if (y < minY) minY = y;
+			if (y > maxY) maxY = y;
+
 			context.fillStyle = `rgb(${r} ${g} ${b})`;
 			context.fillRect(x, y, 1, 1);
 		}
 
-		this.canvasTexture.needsUpdate = true;
+		this.uploadDirtyRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
 	}
 
 	private visualizeWithImageData({ label, data }: LabeledAnnotationData) {
@@ -226,7 +271,7 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 			dirtyW,
 			dirtyH
 		);
-		this.canvasTexture.needsUpdate = true;
+		this.uploadDirtyRect(minX, minY, dirtyW, dirtyH);
 	}
 
 	protected visualizeAllWithLabeledAnnotationData(
@@ -311,6 +356,107 @@ export class TextureAnnotationVisualizer extends BaseVisualizer<
 
 		this.canvasContext.putImageData(this.currentImage, 0, 0);
 		this.canvasTexture.needsUpdate = true;
+	}
+
+	/**
+	 * Uploads only the changed rectangle of the canvas texture to the GPU using
+	 * texSubImage2D, avoiding the full texture re-upload that Three.js performs
+	 * when canvasTexture.needsUpdate is set. Falls back to needsUpdate when the
+	 * WebGL texture is not yet initialized or WebGL2 is unavailable.
+	 */
+	private uploadDirtyRect(
+		minX: number,
+		minY: number,
+		w: number,
+		h: number
+	): void {
+		const gl = this.gl;
+		if (!gl) {
+			this.canvasTexture.needsUpdate = true;
+			return;
+		}
+
+		// __webglTexture is set by Three.js after the first render; fall back
+		// to needsUpdate if the texture hasn't been initialized yet. The name
+		// is a Three.js implementation detail (double-underscore prefix), so we
+		// access it via a typed alias and suppress the naming-convention rule.
+		type WebGLTextureProperties = {
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			__webglTexture?: WebGLTexture | null;
+		};
+		const textureProps = this.renderer.properties.get(
+			this.canvasTexture
+		) as WebGLTextureProperties;
+		const webglTexture = textureProps.__webglTexture ?? null;
+		if (!webglTexture) {
+			this.canvasTexture.needsUpdate = true;
+			return;
+		}
+
+		// Save active texture unit and currently bound 2D texture so we can
+		// restore them after the upload without confusing Three.js's state cache.
+		const prevActiveUnit = gl.getParameter(gl.ACTIVE_TEXTURE) as GLenum;
+		gl.activeTexture(gl.TEXTURE0);
+		const prevBound = gl.getParameter(
+			gl.TEXTURE_BINDING_2D
+		) as WebGLTexture | null;
+
+		gl.bindTexture(gl.TEXTURE_2D, webglTexture);
+
+		// CanvasTexture defaults to flipY=true, so Three.js originally uploaded
+		// the canvas vertically flipped (canvas Y is top-down, GL texture Y is
+		// bottom-up). To match that layout we set UNPACK_FLIP_Y_WEBGL and
+		// translate the destination yoffset into flipped texture space.
+		const flipY = this.canvasTexture.flipY;
+		const yoffset = flipY ? this.canvas.height - minY - h : minY;
+
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY);
+		gl.pixelStorei(
+			gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,
+			this.canvasTexture.premultiplyAlpha
+		);
+		gl.pixelStorei(gl.UNPACK_ALIGNMENT, this.canvasTexture.unpackAlignment);
+
+		// Use pixel-store parameters to read the dirty sub-rectangle directly
+		// from currentImagePixels without allocating an intermediate buffer.
+		gl.pixelStorei(gl.UNPACK_ROW_LENGTH, this.canvas.width);
+		gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, minX);
+		gl.pixelStorei(gl.UNPACK_SKIP_ROWS, minY);
+
+		gl.texSubImage2D(
+			gl.TEXTURE_2D,
+			0,
+			minX,
+			yoffset,
+			w,
+			h,
+			gl.RGBA,
+			gl.UNSIGNED_BYTE,
+			this.currentImagePixels
+		);
+
+		// Regenerate mipmaps so zoomed-out views see the annotation overlay.
+		// Three.js does this automatically after a full needsUpdate upload; for
+		// partial uploads we have to do it ourselves. Skipped when mipmaps are
+		// disabled (see TextureMeshBuilder).
+		if (
+			this.canvasTexture.generateMipmaps &&
+			minFilterUsesMipmaps(this.canvasTexture.minFilter)
+		) {
+			gl.generateMipmap(gl.TEXTURE_2D);
+		}
+
+		// Reset pixel-store to defaults so we don't affect subsequent uploads.
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+		gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+		gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0);
+		gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, 0);
+		gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 0);
+
+		// Restore binding state.
+		gl.bindTexture(gl.TEXTURE_2D, prevBound);
+		gl.activeTexture(prevActiveUnit);
 	}
 
 	private updateVisibleLUT(labelLUT: LabelLUT) {

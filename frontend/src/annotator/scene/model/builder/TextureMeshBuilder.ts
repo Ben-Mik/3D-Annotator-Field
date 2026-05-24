@@ -1,5 +1,6 @@
 import {
 	CanvasTexture,
+	LinearFilter,
 	MeshPhongMaterial,
 	MirroredRepeatWrapping,
 	NearestFilter,
@@ -13,6 +14,7 @@ import { createMainThreadCacheRuntime, type CacheScope } from "~cache/index";
 import { getBufferGeometryInfo } from "~util/Three";
 import { wait } from "~util/Timeout";
 import type { CanvasPositionsPerFace } from "../TextureMesh";
+import { TEXTURE_RENDERING_SETTINGS } from "../TextureRenderingSettings";
 import { BUILDER_RESULT_RESOURCE } from "./BuilderResultResource";
 import { NonBlockingBVHBuilder } from "./bvh/NonBlockingBVHBuilder";
 import { FaceCanvasPositionMapper } from "./texture/FaceCanvasPositionMapper";
@@ -119,6 +121,14 @@ export class TextureMeshBuilder {
 		// treats the pixel values as linear, which makes lit meshes look ~2x
 		// too dark (or weirdly washed out).
 		canvasTexture.colorSpace = SRGBColorSpace;
+		// Mipmap regeneration runs once per partial upload (see
+		// TextureAnnotationVisualizer.uploadDirtyRect). On slower devices the
+		// user can opt out: edges look slightly more aliased when zoomed far
+		// out, but per-stroke GPU work drops noticeably.
+		if (!TEXTURE_RENDERING_SETTINGS.mipmapsEnabled.get()) {
+			canvasTexture.minFilter = LinearFilter;
+			canvasTexture.generateMipmaps = false;
+		}
 		const context = canvas.getContext("2d");
 		if (!context) {
 			throw new Error("Could not create canvas context!");
