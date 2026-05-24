@@ -79,8 +79,16 @@ export class PointerListenerBundle<T extends Pointer>
 	private pointerMoveListener(event: PointerEvent) {
 		this.pointer.hasChanged = true;
 		this.pointer.hasMoved = true;
-		this.pointer.position.x = (event.clientX / window.innerWidth) * 2 - 1;
-		this.pointer.position.y = -(event.clientY / window.innerHeight) * 2 + 1;
+		// Normalize to Three.js NDC (-1..1) using the canvas's bounding rect,
+		// not the window. Using window dimensions would offset the result by
+		// the header/sidebar pixels, which on tablets shows up as the brush
+		// landing slightly below the actual pencil/finger touch point.
+		const canvas = event.currentTarget as HTMLElement;
+		const rect = canvas.getBoundingClientRect();
+		this.pointer.position.x =
+			((event.clientX - rect.left) / rect.width) * 2 - 1;
+		this.pointer.position.y =
+			-((event.clientY - rect.top) / rect.height) * 2 + 1;
 	}
 
 	/**
