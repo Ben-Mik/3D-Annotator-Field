@@ -1,3 +1,6 @@
+# This Fork is done as an effort to try using 3D-Annotator in Archeological Surveys and Excavations. I am no Developer and have very limited knowledge of what im actually doing. Most of this is done with the help of AI and as for now only to work in my personal setup.
+
+
 # 3D-Annotator
 
 ### An open-source, web-based labeling tool for 3D data
