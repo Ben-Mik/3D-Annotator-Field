@@ -200,6 +200,20 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 	}
 
 	/**
+	 * Locks or unlocks the camera controls. When locked, single-finger touch
+	 * and click input goes to the active annotation tool instead of the
+	 * camera (used on tablets where there's no shift/cmd modifier).
+	 */
+	public setViewLocked(locked: boolean): void {
+		const controls = this.scene.getCameraControls();
+		if (locked) {
+			controls.disable();
+		} else {
+			controls.enable();
+		}
+	}
+
+	/**
 	 * Creates a new scene
 	 *
 	 * @param canvas a canvas element
