@@ -1,6 +1,7 @@
 import { useI18nContext } from "i18n/i18n-react";
 import type { PercentageSetting } from "~settings/Settings";
 import { useSetting } from "~ui/annotator/hooks/Settings";
+import { LogSlider } from "../../components/LogSlider";
 import { PercentInput } from "../../components/PercentInput";
 
 /**
@@ -10,18 +11,27 @@ interface Props {
 	sizeSetting: PercentageSetting;
 }
 
+const SLIDER_MIN = 0.1;
+
 export function SphereQuickSettingsView({ sizeSetting }: Props) {
 	const { LL } = useI18nContext();
 	const [size, setSize] = useSetting(sizeSetting);
 	return (
-		<PercentInput
-			label={LL.SIZE() + ":"}
-			value={size}
-			onChange={(size) => {
-				setSize(size);
-			}}
-			min={sizeSetting.min}
-			max={sizeSetting.max}
-		/>
+		<>
+			<LogSlider
+				label={LL.SIZE() + ":"}
+				value={size}
+				onChange={setSize}
+				min={SLIDER_MIN}
+				max={sizeSetting.max}
+			/>
+			<PercentInput
+				label=""
+				value={size}
+				onChange={setSize}
+				min={sizeSetting.min}
+				max={sizeSetting.max}
+			/>
+		</>
 	);
 }
