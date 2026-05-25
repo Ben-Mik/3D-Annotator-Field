@@ -34,7 +34,7 @@ export function LeftSidebar() {
 	);
 
 	return (
-		<div className="fixed top-0 flex h-dvh w-16 flex-col bg-neutral pt-16 pb-4">
+		<div className="fixed top-0 flex h-dvh w-16 flex-col border-r-2 border-primary bg-neutral pt-16 pb-4">
 			<div className="flex grow flex-col">
 				{toolButtons}
 				<div>

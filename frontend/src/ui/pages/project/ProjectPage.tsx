@@ -155,7 +155,7 @@ export function ProjectPage() {
 											})()}
 											target="_blank"
 											rel="noopener noreferrer"
-											className="btn btn-primary normal-case w-full"
+											className="btn btn-outline normal-case w-full"
 										>
 											Add model via ODM
 										</a>

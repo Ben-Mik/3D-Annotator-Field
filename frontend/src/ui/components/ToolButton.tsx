@@ -18,8 +18,8 @@ export function ToolButton({
 	return (
 		<div className="tooltip tooltip-right h-16 w-16" data-tip={toolAlt}>
 			<button
-				className={`btn btn-primary m-1 h-14 w-14 px-3 ${
-					selected && "btn-info"
+				className={`btn btn-ghost m-1 h-14 w-14 px-3 ${
+					selected && "btn-active"
 				}`}
 				onClick={toolFunc}
 				disabled={disabled}

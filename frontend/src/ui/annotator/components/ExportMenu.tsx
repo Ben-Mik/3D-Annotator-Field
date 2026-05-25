@@ -21,7 +21,7 @@ export function ExportMenuModalButton() {
 		>
 			<label
 				htmlFor="export-modal"
-				className="modal-button btn  btn-primary m-1 h-14 w-14 px-[0.875rem]"
+				className="modal-button btn btn-ghost m-1 h-14 w-14 px-[0.875rem]"
 			>
 				<FileOutputIcon strokeWidth={1} size={32} />
 			</label>
@@ -193,7 +193,7 @@ export function ExportMenuModal() {
 									/>
 								</div>
 								<button
-									className="btn btn-primary normal-case"
+									className="btn btn-outline normal-case"
 									onClick={render}
 								>
 									{LL.EXPORT_BUTTON()}
@@ -213,7 +213,7 @@ export function ExportMenuModal() {
 										/>
 									</div>
 									<button
-										className="btn btn-primary normal-case"
+										className="btn btn-outline normal-case"
 										onClick={binary}
 									>
 										{LL.EXPORT_BUTTON()}
@@ -229,7 +229,7 @@ export function ExportMenuModal() {
 										/>
 									</div>
 									<button
-										className="btn btn-primary normal-case"
+										className="btn btn-outline normal-case"
 										onClick={utf8}
 									>
 										{LL.EXPORT_BUTTON()}
@@ -254,7 +254,7 @@ export function ExportMenuModal() {
 										/>
 									</div>
 									<button
-										className="btn btn-primary normal-case"
+										className="btn btn-outline normal-case"
 										onClick={() => {
 											png("annotationClass");
 										}}
@@ -269,7 +269,7 @@ export function ExportMenuModal() {
 										/>
 									</div>
 									<button
-										className="btn btn-primary normal-case"
+										className="btn btn-outline normal-case"
 										onClick={() => {
 											png("color");
 										}}
@@ -284,7 +284,7 @@ export function ExportMenuModal() {
 										/>
 									</div>
 									<button
-										className="btn btn-primary normal-case"
+										className="btn btn-outline normal-case"
 										onClick={() => {
 											png("blended");
 										}}

@@ -509,7 +509,7 @@ export function AddModelDataModalController({
 			<>
 				<label
 					htmlFor="add-model-modal"
-					className="modal-button btn btn-primary w-full normal-case"
+					className="modal-button btn btn-outline w-full normal-case"
 					onClick={() => {
 						setModalOpen(true);
 					}}
@@ -607,7 +607,7 @@ export function AddModelDataModalController({
 							<div className="mt-4 grid grid-cols-2 gap-4">
 								<button
 									type="button"
-									className=" btn btn-primary w-full normal-case"
+									className=" btn btn-outline w-full normal-case"
 									onClick={() => {
 										onFolderSelect();
 									}}
@@ -616,7 +616,7 @@ export function AddModelDataModalController({
 								</button>
 								<button
 									type="button"
-									className=" btn btn-primary w-full normal-case "
+									className=" btn btn-outline w-full normal-case "
 									onClick={() => {
 										onFilesSelect();
 									}}
@@ -641,7 +641,7 @@ export function AddModelDataModalController({
 								)}
 								<button
 									type="submit"
-									className="btn btn-primary btn-block normal-case"
+									className="btn btn-outline btn-block normal-case"
 								>
 									{LL.UPLOAD_MODELS()}
 								</button>

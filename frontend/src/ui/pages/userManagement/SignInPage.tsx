@@ -91,7 +91,7 @@ export function SignInPage() {
 
 							<button
 								type="submit"
-								className="btn btn-block mt-9 bg-primary normal-case"
+								className="btn btn-outline btn-block mt-9 normal-case"
 								disabled={loading}
 							>
 								{LL.LOG_IN()}

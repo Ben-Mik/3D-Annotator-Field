@@ -48,7 +48,7 @@ export function LanguageSelector() {
 				<ul
 					tabIndex={0}
 					className={
-						"z-1 dropdown-content menu rounded-box right-0 m-2 w-52 bg-base-100 p-2 shadow"
+						"z-1 dropdown-content menu rounded-box right-0 m-2 w-52 bg-base-100 p-2"
 					}
 				>
 					<li>

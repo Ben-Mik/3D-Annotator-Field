@@ -35,7 +35,7 @@ export function AddProjectModal() {
 		<>
 			<label
 				htmlFor="label-modal"
-				className="modal-button btn btn-secondary w-full normal-case"
+				className="modal-button btn btn-outline w-full normal-case"
 			>
 				{"+ " + LL.ADD_PROJECT()}
 			</label>
@@ -87,7 +87,7 @@ export function AddProjectModal() {
 
 								<button
 									type="submit"
-									className="btn btn-block mt-6 bg-primary normal-case"
+									className="btn btn-outline btn-block mt-6 normal-case"
 								>
 									{LL.ADD_PROJECT()}
 								</button>

@@ -56,7 +56,7 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 		<>
 			<label
 				htmlFor="update-model-modal"
-				className="modal-button btn btn-primary ml-auto normal-case"
+				className="modal-button btn btn-outline ml-auto normal-case"
 				onClick={() => {
 					setModalOpen(true);
 				}}
@@ -109,7 +109,7 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 
 						<button
 							type="submit"
-							className="btn btn-primary btn-block mt-6 normal-case"
+							className="btn btn-outline btn-block mt-6 normal-case"
 						>
 							{LL.EDIT_MODEL()}
 						</button>
@@ -138,7 +138,7 @@ export function UpdateModelDataModal({ id, name }: UpdateModelDataModalProps) {
 
 						<button
 							type="submit"
-							className="btn btn-primary btn-block mt-6 normal-case"
+							className="btn btn-outline btn-block mt-6 normal-case"
 						>
 							{LL.UPLOAD_ANNOTATION_FILE()}
 						</button>

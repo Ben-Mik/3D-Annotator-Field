@@ -65,3 +65,10 @@ html {
 	opacity: 20%;
 	cursor: not-allowed;
 }
+
+/* Ghost buttons: invert on hover and when active/selected */
+.btn-ghost:hover,
+.btn-ghost.btn-active {
+	background-color: #1f2937;
+	color: #FEFEFE;
+}
