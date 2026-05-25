@@ -38,7 +38,7 @@ function AnnotatorComponent() {
 	return (
 		<>
 			<div
-				className={`fixed h-screen ${
+				className={`fixed h-dvh ${
 					loadingState.loading ? "cursor-wait" : ""
 				}`}
 				style={{ backgroundColor: bgColor }}
