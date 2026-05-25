@@ -124,105 +124,110 @@ export function ProjectPage() {
 			<Header>
 				<SignOutButton />
 			</Header>
-			<div className="mx-auto w-3/4">
-				<div className="">
-					<h1 className="w-2/3 py-4 text-2xl">{name}</h1>
-					<p className="w-full">{description}</p>
+			<div className="mx-auto w-full px-4">
+				<div>
+					<h1 className="py-4 text-2xl">{name}</h1>
+					<p>{description}</p>
 				</div>
 
-				<div className="flex">
-					<div className="mr-4 w-full">
-						<ElementList items={modelDataElementList} />
-					</div>
-					<div className="w-1/3">
-						<StandardContainer>
-							<div className="sticky top-40 mt-4 h-fit p-6">
-								<div className="mb-4">
-									<AddModelDataModalController
-										projectId={projectId}
-									/>
-								</div>
-								<div className="mb-4">
-									<a
-										href={(() => {
-											const base = `${window.location.origin}/odm-link/projects/${projectId}/new-job`;
-											try {
-												const stored = localStorage.getItem("annotatorUserData");
-												const token = stored ? JSON.parse(stored).token : null;
-												return token ? `${base}?token=${encodeURIComponent(token)}` : base;
-											} catch {
-												return base;
-											}
-										})()}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="btn btn-primary normal-case w-full"
-									>
-										Add model via ODM
-									</a>
-								</div>
-								<h2 className="text-xl">{LL.LABELS()}</h2>
-								<ul className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-									{!loading && labelItemList}
-								</ul>
+				<div className="flex flex-col gap-4 lg:flex-row-reverse">
+					{/* Sidebar — top on mobile (sticky), right on desktop */}
+					<div className="w-full shrink-0 lg:w-72">
+						<div className="sticky top-16">
+							<StandardContainer>
+								<div className="h-fit p-4 lg:p-6">
+									<div className="mb-4">
+										<AddModelDataModalController
+											projectId={projectId}
+										/>
+									</div>
+									<div className="mb-4">
+										<a
+											href={(() => {
+												const base = `${window.location.origin}/odm-link/projects/${projectId}/new-job`;
+												try {
+													const stored = localStorage.getItem("annotatorUserData");
+													const token = stored ? JSON.parse(stored).token : null;
+													return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+												} catch {
+													return base;
+												}
+											})()}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="btn btn-primary normal-case w-full"
+										>
+											Add model via ODM
+										</a>
+									</div>
+									<h2 className="text-xl">{LL.LABELS()}</h2>
+									<ul className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+										{!loading && labelItemList}
+									</ul>
 
-								<div className="my-4">
-									<LabelModal project={projectDetails} />
-								</div>
-								<h2 className="text-xl">{LL.OWNER()}</h2>
-								<div className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-									<UserItem
-										name={
-											projectDetails
-												? projectDetails.owner.username
-												: ""
-										}
-									/>
-								</div>
-								<h2 className="text-xl">{LL.MEMBERS()}</h2>
-								<ul className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-									{!loading && userItemList}
-								</ul>
-								{isOwner ? (
-									<div className="mt-4">
-										<UpdateMembersModal
-											project={projectDetails}
+									<div className="my-4">
+										<LabelModal project={projectDetails} />
+									</div>
+									<h2 className="text-xl">{LL.OWNER()}</h2>
+									<div className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+										<UserItem
+											name={
+												projectDetails
+													? projectDetails.owner.username
+													: ""
+											}
+										/>
+									</div>
+									<h2 className="text-xl">{LL.MEMBERS()}</h2>
+									<ul className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+										{!loading && userItemList}
+									</ul>
+									{isOwner ? (
+										<div className="mt-4">
+											<UpdateMembersModal
+												project={projectDetails}
+												setLoading={setLoading}
+											/>
+										</div>
+									) : (
+										<></>
+									)}
+
+									<div className="divider" />
+
+									<div className="my-4">
+										<UpdateProjectModal
+											project={projectDetails!}
 											setLoading={setLoading}
 										/>
 									</div>
-								) : (
-									<></>
-								)}
-
-								<div className="divider" />
-
-								<div className="my-4">
-									<UpdateProjectModal
-										project={projectDetails!}
-										setLoading={setLoading}
-									/>
+									{isOwner ? (
+										<div className="mt-4">
+											<button
+												className="btn btn-error w-full normal-case"
+												onClick={deleteProject}
+											>
+												{LL.DELETE_PROJECT()}
+											</button>
+										</div>
+									) : (
+										<div className="mt-4">
+											<button
+												className="btn btn-error w-full normal-case"
+												onClick={leaveProject}
+											>
+												{LL.LEAVE_PROJECT()}
+											</button>
+										</div>
+									)}
 								</div>
-								{isOwner ? (
-									<div className="mt-4">
-										<button
-											className="btn btn-error w-full normal-case"
-											onClick={deleteProject}
-										>
-											{LL.DELETE_PROJECT()}
-										</button>
-									</div>
-								) : (
-									<div className="mt-4">
-										<button
-											className="btn btn-error w-full normal-case"
-											onClick={leaveProject}
-										>
-											{LL.LEAVE_PROJECT()}
-										</button>
-									</div>
-								)}
-							</div>
-						</StandardContainer>
+							</StandardContainer>
+						</div>
+					</div>
+
+					{/* Model list */}
+					<div className="min-w-0 grow">
+						<ElementList items={modelDataElementList} />
 					</div>
 				</div>
 			</div>
