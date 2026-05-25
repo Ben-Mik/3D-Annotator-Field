@@ -91,7 +91,7 @@ export function LabelModal({ project }: LabelModalControllerProps) {
 		<>
 			<label
 				htmlFor="label-modal"
-				className="modal-button btn btn-primary w-full normal-case"
+				className="modal-button btn btn-outline w-full normal-case"
 			>
 				{LL.EDIT_LABELS()}
 			</label>
@@ -153,7 +153,7 @@ export function LabelModal({ project }: LabelModalControllerProps) {
 							</label>
 							<button
 								type="submit"
-								className="btn btn-primary grow normal-case"
+								className="btn btn-outline grow normal-case"
 							>
 								{LL.ADD()}
 							</button>

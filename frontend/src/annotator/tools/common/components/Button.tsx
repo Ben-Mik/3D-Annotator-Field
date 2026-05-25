@@ -27,7 +27,7 @@ export function Button({
 		>
 			<button
 				disabled={disabled}
-				className={"btn btn-primary"}
+				className={"btn btn-ghost"}
 				onClick={(e) => {
 					onClick(e);
 				}}

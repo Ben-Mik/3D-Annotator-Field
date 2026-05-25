@@ -47,7 +47,7 @@ export function UpdateProjectModal({
 		<>
 			<label
 				htmlFor="update-project-modal"
-				className="modal-button btn btn-primary w-full normal-case"
+				className="modal-button btn btn-outline w-full normal-case"
 				onClick={() => {
 					setModalOpen(true);
 				}}
@@ -113,7 +113,7 @@ export function UpdateProjectModal({
 
 						<button
 							type="submit"
-							className="btn btn-primary btn-block mt-6 normal-case"
+							className="btn btn-outline btn-block mt-6 normal-case"
 						>
 							{LL.EDIT_PROJECT()}
 						</button>

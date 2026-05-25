@@ -15,28 +15,23 @@ interface Props {
  * @returns
  */
 export function ToggleButton({ label, onChange, toolTip, selected }: Props) {
-	const onColor = "btn-info";
-	const offColor = "btn-primary";
 	return (
 		<div
 			className="tooltip tooltip-bottom mx-1 my-auto flex"
 			data-tip={toolTip}
 		>
 			<button
-				className={"btn " + (selected ? onColor : offColor)}
+				className={"btn btn-ghost " + (selected ? "btn-active" : "")}
 				aria-pressed={selected}
 				onClick={(e) => {
-					// might be better to store the status somewhere else
-					const selected = e.currentTarget.ariaPressed === "false";
-					e.currentTarget.ariaPressed = "" + selected;
-					if (selected) {
-						e.currentTarget.classList.remove(offColor);
-						e.currentTarget.classList.add(onColor);
+					const isSelected = e.currentTarget.ariaPressed === "false";
+					e.currentTarget.ariaPressed = "" + isSelected;
+					if (isSelected) {
+						e.currentTarget.classList.add("btn-active");
 					} else {
-						e.currentTarget.classList.remove(onColor);
-						e.currentTarget.classList.add(offColor);
+						e.currentTarget.classList.remove("btn-active");
 					}
-					onChange(selected);
+					onChange(isSelected);
 				}}
 			>
 				{label}

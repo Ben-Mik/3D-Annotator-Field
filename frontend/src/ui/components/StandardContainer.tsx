@@ -6,7 +6,7 @@ interface Props {
 export function StandardContainer({ children, styling }: Props) {
 	return (
 		<div
-			className={`rounded-3xl bg-base-300 text-base-content shadow-xl ${styling}`}
+			className={`rounded-3xl bg-base-300 text-base-content ${styling}`}
 		>
 			{children}
 		</div>

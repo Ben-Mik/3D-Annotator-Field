@@ -100,7 +100,7 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 					<UpdateModelDataModal id={model.id} name={model.name} />
 
 					<button
-						className={`btn btn-primary normal-case`}
+						className={`btn btn-outline normal-case`}
 						onClick={async () => {
 							const res = await exportAnnotationFile(model.id);
 							if (!res) {
@@ -134,7 +134,7 @@ export function ModelDataItem({ model, project }: ModelDataItemProps) {
 								data-tip={`Gesperrt von: ` + model.locked.username}
 							>
 								<button
-									className="btn btn-info normal-case"
+									className="btn btn-outline normal-case"
 									onClick={() => {
 										unlockModelData(model.id);
 									}}

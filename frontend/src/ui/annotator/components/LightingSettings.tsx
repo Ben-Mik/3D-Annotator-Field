@@ -137,7 +137,7 @@ export function LightingSettings() {
 				<div className="flex">
 					<button
 						type="button"
-						className="btn btn-primary normal-case"
+						className="btn btn-outline normal-case"
 						name="set-sun"
 						onClick={() => {
 							annotator!.sceneManager

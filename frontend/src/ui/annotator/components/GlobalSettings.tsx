@@ -30,7 +30,7 @@ export function SettingsModalButton() {
 		<div className="tooltip tooltip-right" data-tip={LL.SETTINGS()}>
 			<label
 				htmlFor="settings-modal"
-				className="modal-button btn btn-primary m-1 h-14 w-14 px-3"
+				className="modal-button btn btn-ghost m-1 h-14 w-14 px-3"
 			>
 				<SlidersHorizontal strokeWidth={1} size={48} />
 			</label>
@@ -176,13 +176,13 @@ export function SettingsModal() {
 							</p>
 							<div className="flex space-x-4">
 								<button
-									className="btn btn-info btn-sm"
+									className="btn btn-outline btn-sm"
 									onClick={queryUsage}
 								>
 									{LL.REFRESH()}
 								</button>
 								<button
-									className="btn btn-info btn-sm"
+									className="btn btn-outline btn-sm"
 									onClick={showCacheContent}
 									disabled={contentButtonDisabled}
 								>

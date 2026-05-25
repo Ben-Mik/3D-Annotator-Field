@@ -12,7 +12,7 @@ export function NotFoundPage() {
 				{LL.PAGE_NOT_FOUND()}
 			</p>
 			<div className="mx-auto flex place-content-center">
-				<Link className="btn btn-primary btn-wide" to="/">
+				<Link className="btn btn-outline btn-wide" to="/">
 					{LL.START_PAGE()}
 				</Link>
 			</div>

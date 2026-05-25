@@ -7,7 +7,7 @@ interface HeaderProps {
 
 export function Header({ children }: HeaderProps) {
 	return (
-		<div className="sticky left-0 top-0 z-10 flex h-16 w-screen bg-neutral shadow-2xl">
+		<div className="sticky left-0 top-0 z-10 flex h-16 w-screen border-b-2 border-primary bg-neutral">
 			<div className="m-2">
 				<Link to="/">
 					<img
