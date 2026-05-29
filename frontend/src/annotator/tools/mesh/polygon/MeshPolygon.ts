@@ -388,8 +388,9 @@ export class MeshPolygon
 			return;
 		}
 
-		const nx = (event.clientX / window.innerWidth) * 2 - 1;
-		const ny = -((event.clientY / window.innerHeight) * 2 - 1);
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+		const ny = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
 
 		if (this.state === PolygonToolState.INACTIVE) {
 			this.startPolygon(nx, ny);
@@ -403,8 +404,9 @@ export class MeshPolygon
 			return;
 		}
 
-		const nx = (event.clientX / window.innerWidth) * 2 - 1;
-		const ny = -((event.clientY / window.innerHeight) * 2 - 1);
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+		const ny = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
 
 		this.moveLastPolygonPoint(nx, ny);
 	}

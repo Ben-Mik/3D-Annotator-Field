@@ -276,8 +276,9 @@ export class MeshLasso extends Tool<Mesh> {
 		const ex = event.clientX;
 		const ey = event.clientY;
 
-		const nx = (event.clientX / window.innerWidth) * 2 - 1;
-		const ny = -((event.clientY / window.innerHeight) * 2 - 1);
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+		const ny = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
 
 		// If the mouse hasn't moved a lot since the last point
 		if (Math.abs(ex - this.prevX) >= 3 || Math.abs(ey - this.prevY) >= 3) {
