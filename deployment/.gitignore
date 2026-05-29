@@ -3,5 +3,16 @@
 *.tmp
 **/*-tmp
 
+# Secrets — never commit
+.env
 .env.local
 .env.*.local
+certs/
+
+# Runtime state — never commit
+api/db/
+api/media/
+api/static/
+
+# macOS
+.DS_Store
