@@ -72,3 +72,10 @@ html {
 	background-color: #1f2937;
 	color: #FEFEFE;
 }
+
+/* Ghost buttons: remove the DaisyUI button-pop bounce animation */
+.btn-ghost:active:hover,
+.btn-ghost:active:focus {
+	animation: none;
+	transform: scale(1);
+}
