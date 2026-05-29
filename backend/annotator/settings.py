@@ -47,6 +47,8 @@ CSRF_TRUSTED_ORIGINS = [] if origins == "" else origins.split(",")
 
 # Application definition
 
+DBLINK_ENABLED = os.environ.get("DBLINK_ENABLED", "false") == "true"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -59,6 +61,9 @@ INSTALLED_APPS = [
     "corsheaders",
     "annotator.backend",
 ]
+
+if DBLINK_ENABLED:
+    INSTALLED_APPS.append("annotator.dblink")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

@@ -1,5 +1,6 @@
 import { type AnnotationManager } from "~annotator/annotation/AnnotationManager";
 import { type UndoManager } from "~annotator/annotation/undo/UndoManager";
+import { type DbLinkManager } from "~dblink/DbLinkManager";
 import { type Scene } from "~annotator/scene/Scene";
 import { type Model } from "~annotator/scene/model/Model";
 import { type Destroyable } from "~entity/Types";
@@ -25,6 +26,11 @@ export abstract class ToolManager<M extends Model>
 	protected readonly undoManager: UndoManager;
 	protected readonly scene: Scene<M>;
 	protected readonly sharedSelectionBuffer: SelectionBuffer;
+	/**
+	 * `null` when DB-link is disabled at build time. Subclasses should
+	 * only register the DB-link tool when this is non-null.
+	 */
+	protected readonly dbLinkManager: DbLinkManager | null;
 
 	private readonly tools: Tool<M>[];
 	private current?: Tool<M>;
@@ -40,11 +46,13 @@ export abstract class ToolManager<M extends Model>
 	constructor(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<M>
+		scene: Scene<M>,
+		dbLinkManager: DbLinkManager | null
 	) {
 		this.annotationManager = annotationManager;
 		this.undoManager = undoManager;
 		this.scene = scene;
+		this.dbLinkManager = dbLinkManager;
 		this.sharedSelectionBuffer = new SelectionBuffer(
 			scene.getModel().getModelSize()
 		);

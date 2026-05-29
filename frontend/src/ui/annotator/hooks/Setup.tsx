@@ -410,6 +410,36 @@ export function useSetup(sceneParentRef: React.RefObject<HTMLDivElement>) {
 				return;
 			}
 
+			/**
+			 *  Load DB-link points + config for this model and wire the
+			 *  auto-save callback. No-op when the DB-link feature is
+			 *  disabled at build time (manager and api.dbLinks are both
+			 *  null). Failures are non-fatal.
+			 */
+			if (api.dbLinks && annotator.dbLinkManager) {
+				const dbLinkApi = api.dbLinks;
+				const dbLinkMgr = annotator.dbLinkManager;
+				const dbLinkRes = await dbLinkApi.loadPoints(
+					modelInformation.id,
+					apiAbortController
+				);
+				if (dbLinkRes.isOk()) {
+					dbLinkMgr.loadPoints(dbLinkRes.value);
+				} else if (dbLinkRes.error.code === Errors.NETWORK) {
+					console.warn("Failed to load DB-link points");
+				}
+				const configRes = await dbLinkApi.getConfig(
+					modelInformation.projectId,
+					apiAbortController
+				);
+				if (configRes.isOk()) {
+					dbLinkMgr.setConfig(configRes.value);
+				}
+				dbLinkMgr.setSaveCallback(async (points) => {
+					await dbLinkApi.savePoints(modelInformation.id, points);
+				});
+			}
+
 			updateLoadingState(LL.FINISHED_SETUP(), undefined, false);
 			annotator.start();
 			setAnnotator(annotator);

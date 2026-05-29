@@ -9,6 +9,8 @@ import { LabelItem } from "~ui/components/LabelItem";
 import { StandardContainer } from "~ui/components/StandardContainer";
 import { UserItem } from "~ui/components/UserItem";
 import { ModelDataItem } from "~ui/pages/project/ModelDataItem";
+import { ENV } from "env";
+import { DbLinkProjectSection } from "~dblink/DbLinkProjectSection";
 import { AddModelDataModalController } from "~ui/pages/project/addModel/AddModelDataModalController";
 import { LabelModal } from "~ui/pages/project/modals/LabelModal";
 import { UpdateMembersModal } from "~ui/pages/project/modals/UpdateMembersModal";
@@ -168,6 +170,13 @@ export function ProjectPage() {
 									<div className="my-4">
 										<LabelModal project={projectDetails} />
 									</div>
+									{ENV.ANNOTATOR_3D_DBLINK_ENABLED &&
+										projectDetails && (
+											<DbLinkProjectSection
+												project={projectDetails}
+												isOwner={isOwner}
+											/>
+										)}
 									<h2 className="text-xl">{LL.OWNER()}</h2>
 									<div className="my-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
 										<UserItem

@@ -1,7 +1,10 @@
 import axios, { type AxiosInstance } from "axios";
+import { ENV } from "env";
+import { createDbLinkClient } from "~dblink/api";
 import {
 	type API,
 	type Auth,
+	type DbLinkClient,
 	type Files,
 	type Labels,
 	type Models,
@@ -37,6 +40,7 @@ export class APIv1 implements API {
 	readonly models: Models;
 	readonly labels: Labels;
 	readonly files: Files;
+	readonly dbLinks: DbLinkClient | null;
 
 	constructor(baseURL: string, axiosInstance?: AxiosInstance) {
 		const formattedBaseURL = this.formatBaseURL(baseURL, VERSION);
@@ -61,6 +65,12 @@ export class APIv1 implements API {
 		this.models = new ModelsV1(this.axios);
 		this.labels = new LabelsV1(this.axios);
 		this.files = new FilesV1(this.axios);
+
+		// Optional plugins — installed only when the corresponding build
+		// flag is on.
+		this.dbLinks = ENV.ANNOTATOR_3D_DBLINK_ENABLED
+			? createDbLinkClient(this.axios)
+			: null;
 
 		// convert blob errors back to json
 		this.axios.interceptors.response.use((value) => value, convertBlobData);

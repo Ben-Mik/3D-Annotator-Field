@@ -8,6 +8,7 @@
 			"~api/*": ["api/*"],
 			"~assets/*": ["assets/*"],
 			"~cache/*": ["cache/*"],
+			"~dblink/*": ["dblink/*"],
 			"~entity/*": ["entity/*"],
 			"~events/*": ["events/*"],
 			"~settings/*": ["settings/*"],

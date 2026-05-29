@@ -21,6 +21,13 @@ import {
 	type SingularError,
 } from "./Errors";
 
+// Forward declaration for optional plugins. Importing the full DbLinkClient
+// type from the dblink module would create a cycle (dblink imports types
+// from this file). Treat it as an opaque optional surface here; the dblink
+// module re-exports the precise shape.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DbLinkClient = any;
+
 export interface API {
 	readonly auth: Auth;
 	readonly users: Users;
@@ -28,6 +35,7 @@ export interface API {
 	readonly models: Models;
 	readonly labels: Labels;
 	readonly files: Files;
+	readonly dbLinks: DbLinkClient | null;
 }
 
 /**

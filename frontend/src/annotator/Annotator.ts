@@ -15,6 +15,8 @@ import { AnnotationManager } from "./annotation/AnnotationManager";
 import { LabelManager } from "./annotation/LabelManager";
 import { HybridUndoManager } from "./annotation/undo/HybridUndoManager";
 import { type UndoManager } from "./annotation/undo/UndoManager";
+import { ENV } from "env";
+import { DbLinkManager } from "~dblink/DbLinkManager";
 import {
 	CacheBackedAnnotationFileManager,
 	type AnnotationFileManager,
@@ -114,6 +116,11 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 	public readonly labelManager: LabelManager;
 	public readonly modelFileManager: ModelFileManager;
 	public readonly annotationFileManager: AnnotationFileManager;
+	/**
+	 * `null` when DB-link is disabled at build time. All call sites must
+	 * null-check before using.
+	 */
+	public readonly dbLinkManager: DbLinkManager | null;
 
 	/**
 	 * Exists only after {@link setup} was called and has finished.
@@ -176,6 +183,10 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 			labels,
 			modelInformation.modelType
 		);
+
+		this.dbLinkManager = ENV.ANNOTATOR_3D_DBLINK_ENABLED
+			? new DbLinkManager()
+			: null;
 
 		this.scene = this.createScene(sceneParent);
 
@@ -327,7 +338,8 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 		this.toolManager = this.createToolManager(
 			this.annotationManager,
 			this.undoManager,
-			this.scene
+			this.scene,
+			this.dbLinkManager
 		);
 
 		this.setProgress(SetupStage.FINISHED, onProgress);
@@ -482,6 +494,10 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 			this.toolManager.destroy();
 		}
 
+		if (this.dbLinkManager) {
+			this.dbLinkManager.destroy();
+		}
+
 		this.unsubscribeOpacitySetting();
 	}
 
@@ -502,6 +518,14 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 		return this.annotationManager.getAnnotationDataLUT();
 	}
 
+	/**
+	 * Accessors used by the DB-link overlay (and any other DOM-side overlay
+	 * that needs to project world-space positions to screen-space each frame).
+	 */
+	public getScene(): Scene<T> {
+		return this.scene;
+	}
+
 	public getSettingsComponent(): FC {
 		return () => null;
 	}
@@ -516,6 +540,7 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 	protected abstract createToolManager(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<T>
+		scene: Scene<T>,
+		dbLinkManager: DbLinkManager | null
 	): ToolManager<T>;
 }
