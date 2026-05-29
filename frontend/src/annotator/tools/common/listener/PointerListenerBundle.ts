@@ -98,7 +98,20 @@ export class PointerListenerBundle<T extends Pointer>
 	 */
 	private pointerDownListener(event: PointerEvent) {
 		this.pointer.hasChanged = true;
+		// Treat the down event as a position update too. On stylus/touch
+		// input, pointermove only fires DURING contact — so when the user
+		// lifts and taps a new spot, the down event IS the first signal
+		// of the new position. Without `hasMoved = true` and the position
+		// sync below, the next stroke would start at the previous
+		// stroke's end instead of where the touch actually landed.
+		this.pointer.hasMoved = true;
 		this.pointer.buttons = event.buttons;
+		const canvas = event.currentTarget as HTMLElement;
+		const rect = canvas.getBoundingClientRect();
+		this.pointer.position.x =
+			((event.clientX - rect.left) / rect.width) * 2 - 1;
+		this.pointer.position.y =
+			-((event.clientY - rect.top) / rect.height) * 2 + 1;
 	}
 
 	/**
