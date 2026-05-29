@@ -32,7 +32,7 @@ export function ViewLockButton() {
 					<Unlock size={48} strokeWidth={1} />
 				)
 			}
-			toolAlt={locked ? "Unlock view" : "Lock view (touch annotates)"}
+			toolAlt="Lock view"
 			toolFunc={toggle}
 			selected={locked}
 		/>
