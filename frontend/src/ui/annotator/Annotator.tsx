@@ -78,6 +78,7 @@ function AnnotatorComponent() {
 					}`}
 					style={{
 						cursor,
+						touchAction: "none",
 					}}
 				/>
 
