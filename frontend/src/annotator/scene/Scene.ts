@@ -31,7 +31,7 @@ import { SceneManager } from "./SceneManager";
 import { type SceneSubject } from "./SceneSubject";
 
 export const SCENE_SETTINGS = {
-	backgroundColor: new ColorSetting("backgroundColor", 0x3c3c3c),
+	backgroundColor: new ColorSetting("backgroundColor", 0xfefefe),
 };
 
 const settingsRegistry = new LocalStorageSettingsRegistry("scene-kX9pB");
