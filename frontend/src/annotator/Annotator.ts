@@ -330,6 +330,12 @@ export abstract class Annotator<T extends Model> implements Destroyable {
 			this.scene
 		);
 
+		// Automatically lock the camera while a tool is active so that
+		// touch/click input goes to the tool instead of orbiting the camera.
+		this.toolManager.on("selected", (tool) => {
+			this.setViewLocked(tool !== undefined);
+		});
+
 		this.setProgress(SetupStage.FINISHED, onProgress);
 		this.setupActive = false;
 		return ok(true);
