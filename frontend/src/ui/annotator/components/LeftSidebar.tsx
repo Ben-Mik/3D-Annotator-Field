@@ -6,7 +6,6 @@ import { useTools } from "~ui/annotator/hooks/Tools";
 import { ExportMenuModalButton } from "./ExportMenu";
 import { SettingsModalButton } from "./GlobalSettings";
 import { SaveButton } from "./SaveButton";
-import { ViewLockButton } from "./ViewLockButton";
 
 export function LeftSidebar() {
 	const annotator = useAnnotator();
@@ -37,9 +36,6 @@ export function LeftSidebar() {
 		<div className="fixed top-0 flex h-dvh w-16 flex-col border-r-2 border-primary bg-neutral pt-16 pb-4">
 			<div className="flex grow flex-col">
 				{toolButtons}
-				<div>
-					<ViewLockButton />
-				</div>
 			</div>
 			<div className="bottom-0 flex grow flex-col place-content-end">
 				<div>
