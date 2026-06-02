@@ -76,7 +76,7 @@ services:
       - traefik
   traefik:
     container_name: traefik
-    image: traefik:v3.4
+    image: traefik:v3.7.1
     command:
       - "--configFile=/etc/traefik/traefik.yml"
     ports:
