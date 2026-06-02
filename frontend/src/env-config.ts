@@ -20,6 +20,10 @@ const ENV_SCHEMA = {
 		.string()
 		.default("false")
 		.transform((v) => v === "true"),
+	ANNOTATOR_3D_ODMLINK_ENABLED: z
+		.string()
+		.default("false")
+		.transform((v) => v === "true"),
 };
 
 export function parseEnvironmentVariables(variables: Record<string, string>) {
