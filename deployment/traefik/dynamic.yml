@@ -1,7 +1,7 @@
 tls:
   certificates:
-    - certFile: /path/to/cert
-      keyFile: /path/to/key
+    - certFile: /certs/cert.crt
+      keyFile: /certs/cert.key
 
 http:
   middlewares:
