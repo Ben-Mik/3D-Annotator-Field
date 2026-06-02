@@ -49,7 +49,7 @@ services:
       dockerfile: deployment/static/Dockerfile
       args:
         API_BASE: https://${ANNOTATOR_DEPLOYMENT_DOMAIN}/api
-        TITLE: 3D-Annotator
+        TITLE: ${ANNOTATOR_TITLE:-3D-Annotator}
         DBLINK_ENABLED: ${DBLINK_ENABLED:-false}
         ODMLINK_ENABLED: ${ODMLINK_ENABLED:-false}
     volumes:
