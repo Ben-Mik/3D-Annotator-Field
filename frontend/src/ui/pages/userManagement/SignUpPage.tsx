@@ -72,9 +72,9 @@ export function SignUpPage() {
 					</Link>
 				</div>
 			</Header>
-			<div className="space-b-4 fixed left-1/2 top-1/2 w-96 -translate-x-1/2 -translate-y-1/2 transform">
+			<div className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2">
 				<StandardContainer>
-					<div className="p-12">
+					<div className="p-8 sm:p-12">
 						<h1 className="text-2xl">{LL.REGISTER()}</h1>
 						<form onSubmit={submit}>
 							<label htmlFor="username" className="label">
