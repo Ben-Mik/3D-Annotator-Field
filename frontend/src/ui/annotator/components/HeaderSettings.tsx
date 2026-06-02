@@ -1,4 +1,7 @@
+import { ENV } from "env";
 import React from "react";
+import { DbLinkDeleteButton } from "~dblink/DbLinkDeleteButton";
+import { DbLinkTool } from "~dblink/DbLinkTool";
 import { useTools } from "~ui/annotator/hooks/Tools";
 import { Eraser } from "./Eraser";
 import { HelpButton } from "./Help";
@@ -12,11 +15,15 @@ export function HeaderSettings() {
 		  })
 		: null;
 
+	const isDbLinkActive =
+		ENV.ANNOTATOR_3D_DBLINK_ENABLED && selectedTool instanceof DbLinkTool;
+
 	return (
 		<div className="flex flex-grow items-center">
 			<UndoButton></UndoButton>
 			<RedoButton></RedoButton>
 			<Eraser></Eraser>
+			{isDbLinkActive && <DbLinkDeleteButton />}
 			{toolSettings}
 			<HelpButton></HelpButton>
 		</div>

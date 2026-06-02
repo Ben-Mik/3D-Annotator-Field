@@ -2,6 +2,7 @@ import { type ModelType } from "~entity/ModelInformation";
 import { type AnnotationManager } from "./annotation/AnnotationManager";
 import type { LabelManager } from "./annotation/LabelManager";
 import { type UndoManager } from "./annotation/undo/UndoManager";
+import { type DbLinkManager } from "~dblink/DbLinkManager";
 import { Annotator } from "./Annotator";
 import type { TextureMesh } from "./scene/model/TextureMesh";
 import { type Scene } from "./scene/Scene";
@@ -31,9 +32,15 @@ export class TextureAnnotator extends Annotator<TextureMesh> {
 	protected override createToolManager(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<TextureMesh>
+		scene: Scene<TextureMesh>,
+		dbLinkManager: DbLinkManager | null
 	): ToolManager<TextureMesh> {
-		return new TextureToolManager(annotationManager, undoManager, scene);
+		return new TextureToolManager(
+			annotationManager,
+			undoManager,
+			scene,
+			dbLinkManager
+		);
 	}
 
 	protected override createScene(

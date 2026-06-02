@@ -2,6 +2,7 @@ import { type ModelType } from "~entity/ModelInformation";
 import { type AnnotationManager } from "./annotation/AnnotationManager";
 import type { LabelManager } from "./annotation/LabelManager";
 import { type UndoManager } from "./annotation/undo/UndoManager";
+import { type DbLinkManager } from "~dblink/DbLinkManager";
 import { Annotator } from "./Annotator";
 import { PointCloudAnnotatorSettingsView } from "./PointCloudAnnotatorSettings";
 import { type PointCloud } from "./scene/model/PointCloud";
@@ -29,9 +30,15 @@ export class PointCloudAnnotator extends Annotator<PointCloud> {
 	protected createToolManager(
 		annotationManager: AnnotationManager,
 		undoManager: UndoManager,
-		scene: Scene<PointCloud>
+		scene: Scene<PointCloud>,
+		dbLinkManager: DbLinkManager | null
 	): ToolManager<PointCloud> {
-		return new PointCloudToolManager(annotationManager, undoManager, scene);
+		return new PointCloudToolManager(
+			annotationManager,
+			undoManager,
+			scene,
+			dbLinkManager
+		);
 	}
 
 	protected override createScene(

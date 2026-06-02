@@ -1,5 +1,8 @@
+import { ENV } from "env";
 import { useRef } from "react";
 import { SCENE_SETTINGS } from "~annotator/scene/Scene";
+import { DbLinkMarkers } from "~dblink/DbLinkMarkers";
+import { LinkingWindow } from "~dblink/LinkingWindow";
 import { Header } from "~ui/components/Header";
 import { LanguageSelector } from "~ui/components/LanguageSelector";
 import { CameraPerspective } from "./components/CameraPerspective";
@@ -82,6 +85,8 @@ function AnnotatorComponent() {
 					}}
 				/>
 
+				{ENV.ANNOTATOR_3D_DBLINK_ENABLED && <DbLinkMarkers />}
+
 				<Stats />
 
 				<LoadingState
@@ -91,6 +96,7 @@ function AnnotatorComponent() {
 			</div>
 			<SettingsModal />
 			<ExportMenuModal />
+			{ENV.ANNOTATOR_3D_DBLINK_ENABLED && <LinkingWindow />}
 		</>
 	);
 }

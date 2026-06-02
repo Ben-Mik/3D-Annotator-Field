@@ -1,4 +1,5 @@
 import type { TextureMesh } from "~annotator/scene/model/TextureMesh";
+import { DbLinkTool } from "~dblink/DbLinkTool";
 import { type Tool } from "../Tool";
 import { ToolManager } from "../ToolManager";
 import { TextureBrush3D } from "./brush_3D/TextureBrush3D";
@@ -18,7 +19,7 @@ export class TextureToolManager extends ToolManager<TextureMesh> {
 	 * @returns the array of tools
 	 */
 	protected createTools(): Tool<TextureMesh>[] {
-		return [
+		const tools: Tool<TextureMesh>[] = [
 			new TexturePixel(
 				this.annotationManager,
 				this.undoManager,
@@ -56,5 +57,17 @@ export class TextureToolManager extends ToolManager<TextureMesh> {
 				this.sharedSelectionBuffer
 			),
 		];
+		if (this.dbLinkManager) {
+			tools.push(
+				new DbLinkTool(
+					this.annotationManager,
+					this.undoManager,
+					this.scene,
+					this.sharedSelectionBuffer,
+					this.dbLinkManager
+				)
+			);
+		}
+		return tools;
 	}
 }

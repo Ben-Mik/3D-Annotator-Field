@@ -28,6 +28,7 @@ services:
       - GUNICORN_TIMEOUT=${ANNOTATOR_BACKEND_TIMEOUT}
       - GUNICORN_NUM_WORKERS=${ANNOTATOR_BACKEND_NUM_WORKERS}
       - ANNOTATOR_BACKEND_MAX_FILE_SIZE=${ANNOTATOR_BACKEND_MAX_FILE_SIZE}
+      - DBLINK_ENABLED=${DBLINK_ENABLED:-false}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`${ANNOTATOR_DEPLOYMENT_DOMAIN}`) && PathPrefix(`/api`)"
@@ -49,6 +50,7 @@ services:
       args:
         API_BASE: https://${ANNOTATOR_DEPLOYMENT_DOMAIN}/api
         TITLE: 3D-Annotator
+        DBLINK_ENABLED: ${DBLINK_ENABLED:-false}
     volumes:
       - ./api/static:/home/api_static:ro
     expose:

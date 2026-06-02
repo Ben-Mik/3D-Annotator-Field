@@ -14,6 +14,12 @@ const ENV_SCHEMA = {
 	ANNOTATOR_3D_FRONTEND_VERSION_SHA: z.string().default("-"),
 	ANNOTATOR_3D_SERVER_VERSION: z.string().default("vite dev server"),
 	ANNOTATOR_3D_SERVER_VERSION_SHA: z.string().default("-"),
+	// z.coerce.boolean() treats any non-empty string as true (including
+	// "false"), so coerce explicitly via string comparison.
+	ANNOTATOR_3D_DBLINK_ENABLED: z
+		.string()
+		.default("false")
+		.transform((v) => v === "true"),
 };
 
 export function parseEnvironmentVariables(variables: Record<string, string>) {

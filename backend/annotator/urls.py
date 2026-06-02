@@ -13,17 +13,18 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 
+api_routes = [
+    path("admin/", admin.site.urls),
+    path("", include("annotator.backend.urls")),
+]
+
+if settings.DBLINK_ENABLED:
+    api_routes.append(path("v1/", include("annotator.dblink.urls")))
+
 urlpatterns = [
-    path(
-        "api/",
-        include(
-            [
-                path("admin/", admin.site.urls),
-                path("", include("annotator.backend.urls")),
-            ]
-        ),
-    )
+    path("api/", include(api_routes)),
 ]
