@@ -52,6 +52,7 @@ services:
         TITLE: ${ANNOTATOR_TITLE:-3D-Annotator}
         DBLINK_ENABLED: ${DBLINK_ENABLED:-false}
         ODMLINK_ENABLED: ${ODMLINK_ENABLED:-false}
+        ALLOW_SIGNUP: ${ALLOW_SIGNUP:-true}
     volumes:
       - ./api/static:/home/api_static:ro
     expose:

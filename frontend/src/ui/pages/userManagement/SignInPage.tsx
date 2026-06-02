@@ -1,6 +1,7 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { ENV } from "env";
 import { Header } from "~ui/components/Header";
 import { StandardContainer } from "~ui/components/StandardContainer";
 import { useAPI } from "../../contexts/APIContext";
@@ -39,14 +40,16 @@ export function SignInPage() {
 	return (
 		<>
 			<Header>
-				<div className="flex grow justify-end px-4">
-					<Link
-						className="text-xl text-neutral-content"
-						to={"/register"}
-					>
-						{LL.REGISTER()}
-					</Link>
-				</div>
+				{ENV.ANNOTATOR_3D_ALLOW_SIGNUP ? (
+					<div className="flex grow justify-end px-4">
+						<Link
+							className="text-xl text-neutral-content"
+							to={"/register"}
+						>
+							{LL.REGISTER()}
+						</Link>
+					</div>
+				) : undefined}
 			</Header>
 			<div className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2">
 				<StandardContainer>

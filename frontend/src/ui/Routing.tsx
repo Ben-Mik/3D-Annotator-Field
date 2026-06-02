@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, useRoutes } from "react-router-dom";
+import { ENV } from "env";
 import { AnnotatorPage } from "./annotator/Annotator";
 import { useAuth } from "./contexts/AuthContext";
 import { NotFoundPage } from "./pages/notFound/NotFoundPage";
@@ -56,7 +57,11 @@ const ROUTES = (isLoggedIn: boolean) => [
 	},
 	{
 		path: "/register",
-		element: !isLoggedIn ? <SignUpPage /> : <Navigate to="/" />,
+		element: ENV.ANNOTATOR_3D_ALLOW_SIGNUP ? (
+			!isLoggedIn ? <SignUpPage /> : <Navigate to="/" />
+		) : (
+			<NotFoundPage />
+		),
 	},
 	{
 		path: "/*",

@@ -24,6 +24,10 @@ const ENV_SCHEMA = {
 		.string()
 		.default("false")
 		.transform((v) => v === "true"),
+	ANNOTATOR_3D_ALLOW_SIGNUP: z
+		.string()
+		.default("true")
+		.transform((v) => v === "true"),
 };
 
 export function parseEnvironmentVariables(variables: Record<string, string>) {
