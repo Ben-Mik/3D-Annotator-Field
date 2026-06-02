@@ -1,5 +1,6 @@
 import { useI18nContext } from "i18n/i18n-react";
 import { Save } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import {
 	useAnnotator,
@@ -13,6 +14,34 @@ export function SaveButton() {
 	const api = useAPI();
 	const annotator = useAnnotator();
 	const modelInformation = useModelInformation();
+	const isInFlightRef = useRef(false);
+	const pendingRef = useRef(false);
+
+	async function backgroundSave() {
+		if (!annotator || !modelInformation) return;
+		if (isInFlightRef.current) {
+			pendingRef.current = true;
+			return;
+		}
+		isInFlightRef.current = true;
+		pendingRef.current = false;
+		await annotator.save();
+		const dataStream =
+			await annotator.annotationFileManager.readAnnotationFile();
+		await api.files.uploadAnnotationFile(modelInformation.id, dataStream, {
+			onCompressionProgress: () => {},
+			onUploadProgress: () => {},
+		});
+		isInFlightRef.current = false;
+		if (pendingRef.current) backgroundSave();
+	}
+
+	useEffect(() => {
+		if (!annotator) return;
+		return annotator.undoManager.on("countChange", ({ undos }) => {
+			if (undos > 0) backgroundSave();
+		});
+	}, [annotator]);
 
 	async function onSaveHandler() {
 		if (!annotator || !modelInformation) return;
@@ -21,6 +50,8 @@ export function SaveButton() {
 			isLoading: true,
 		});
 
+		isInFlightRef.current = true;
+		pendingRef.current = false;
 		await annotator.save();
 
 		const dataStream =
@@ -39,6 +70,8 @@ export function SaveButton() {
 				},
 			}
 		);
+
+		isInFlightRef.current = false;
 
 		if (res.isErr()) {
 			toast.update(id, {
