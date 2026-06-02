@@ -4,6 +4,10 @@ services:
   api:
     container_name: "api"
     image: "${ANNOTATOR_IMAGE_NAME_FULL_API}:latest"
+    pull_policy: never
+    build:
+      context: ../
+      dockerfile: deployment/api/Dockerfile
     user: "${ANNOTATOR_BACKEND_UID}:${ANNOTATOR_BACKEND_GID}"
     volumes:
       - ./api/static:/home/api/backend/static
@@ -38,6 +42,13 @@ services:
   static:
     container_name: "static"
     image: "${ANNOTATOR_IMAGE_NAME_FULL_STATIC}:latest"
+    pull_policy: never
+    build:
+      context: ../
+      dockerfile: deployment/static/Dockerfile
+      args:
+        API_BASE: https://${ANNOTATOR_DEPLOYMENT_DOMAIN}/api
+        TITLE: 3D-Annotator
     volumes:
       - ./api/static:/home/api_static:ro
     expose:
