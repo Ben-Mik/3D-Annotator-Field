@@ -24,6 +24,10 @@ const ENV_SCHEMA = {
 		.string()
 		.default("false")
 		.transform((v) => v === "true"),
+	ANNOTATOR_3D_RELIEF3D_ENABLED: z
+		.string()
+		.default("false")
+		.transform((v) => v === "true"),
 	ANNOTATOR_3D_ALLOW_SIGNUP: z
 		.string()
 		.default("true")
