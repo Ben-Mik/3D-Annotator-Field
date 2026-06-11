@@ -45,6 +45,9 @@ export class GenericLoader implements Loader<GenericLoaderResult, File[]> {
 			throw new Error("expected at least one file");
 		}
 
+		// Ignore sidecars the annotator doesn't load (e.g. OBJ .mtl material).
+		files = files.filter((file) => !hasFileExtension(file, ["mtl"]));
+
 		if (files.length > 2) {
 			throw new Error("Not more than two files supported.");
 		}
