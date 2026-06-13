@@ -24,7 +24,7 @@ const ENV_SCHEMA = {
 		.string()
 		.default("false")
 		.transform((v) => v === "true"),
-	ANNOTATOR_3D_RELIEF3D_ENABLED: z
+	ANNOTATOR_3D_MOSAIC3D_ENABLED: z
 		.string()
 		.default("false")
 		.transform((v) => v === "true"),

@@ -164,11 +164,11 @@ export function ProjectPage() {
 											</a>
 										</div>
 									)}
-									{ENV.ANNOTATOR_3D_RELIEF3D_ENABLED && (
+									{ENV.ANNOTATOR_3D_MOSAIC3D_ENABLED && (
 										<div className="mb-4">
 											<a
 												href={(() => {
-													const base = `${window.location.origin}/relief3d/projects/${projectId}/new-job`;
+													const base = `${window.location.origin}/mosaic3dhub/projects/${projectId}/new-job`;
 													try {
 														const stored = localStorage.getItem("annotatorUserData");
 														const token = stored ? JSON.parse(stored).token : null;
@@ -181,7 +181,7 @@ export function ProjectPage() {
 												rel="noopener noreferrer"
 												className="btn btn-outline normal-case w-full"
 											>
-												Add model via Relief3D
+												Add model via Mosaic3D
 											</a>
 										</div>
 									)}
